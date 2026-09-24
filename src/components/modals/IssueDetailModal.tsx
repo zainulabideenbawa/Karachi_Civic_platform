@@ -16,6 +16,10 @@ import {
   Building2,
   Send,
   SlidersHorizontal,
+  Copy,
+  Check,
+  ExternalLink,
+  Download,
 } from "lucide-react";
 
 export const IssueDetailModal: React.FC = () => {
@@ -25,9 +29,12 @@ export const IssueDetailModal: React.FC = () => {
     toggleAffected,
     voteConfirmation,
     showToast,
+    activeUC,
   } = useCivic();
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState<
     { id: string; user: string; role: string; text: string; time: string }[]
@@ -84,13 +91,11 @@ export const IssueDetailModal: React.FC = () => {
           <div className="flex items-center gap-1.5">
             {/* Share Card Trigger */}
             <button
-              onClick={() => {
-                showToast("1080x1350 Share Card copied to clipboard!");
-              }}
+              onClick={() => setShowShareModal(true)}
               className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              title="Share Card"
+              title="Share Viral Card"
             >
-              <Share2 className="w-4 h-4" />
+              <Share2 className="w-4 h-4 text-teal-600" />
             </button>
 
             {/* Close Modal */}
@@ -336,6 +341,97 @@ export const IssueDetailModal: React.FC = () => {
             </form>
           </div>
         </div>
+
+        {/* ================= VIRAL SHARE CARD MODAL (Section 11.2) ================= */}
+        {showShareModal && (
+          <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex flex-col justify-end sm:justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3.5 shadow-2xl text-white">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-teal-400">
+                    Share Civic Accountability Card
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Auto-generated 1200x630 proof card for viral social pressure
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* OG Card Live Preview */}
+              <div className="relative w-full aspect-1200/630 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(activeUC.townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(activeUC.chairman.name)}&status=${selectedIssue.status}`}
+                  alt="Civic Accountability Card"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Share Channels */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* WhatsApp */}
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `🚨 *Karachi Civic Alert* (${selectedIssue.ucName})\n"${selectedIssue.title}" has been open for *${selectedIssue.daysOpen} days* with ${selectedIssue.affectedCount} residents affected.\n\nResponsible: ${activeUC.chairman.name} (${activeUC.chairman.seatTitle})\nTrack on Karachi Civic: https://karachicivic.org/issue/${selectedIssue.id}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-xs text-white shadow-xs transition"
+                >
+                  <span>💬 WhatsApp</span>
+                </a>
+
+                {/* X / Twitter */}
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                    `🚨 Civic Accountability in #Karachi: "${selectedIssue.title}" in ${selectedIssue.ucName} has been open for ${selectedIssue.daysOpen} days. ${selectedIssue.affectedCount} neighbors affected. @KarachiCivic`
+                  )}&url=${encodeURIComponent(`https://karachicivic.org/issue/${selectedIssue.id}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-xs text-white border border-slate-600 shadow-xs transition"
+                >
+                  <span>𝕏 Post on Twitter</span>
+                </a>
+              </div>
+
+              {/* Copy Link & Download Row */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const shareUrl = `${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}/issue/${selectedIssue.id}`;
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(shareUrl);
+                      setCopiedLink(true);
+                      showToast("Issue link copied to clipboard!");
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }
+                  }}
+                  className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-300" />}
+                  <span>{copiedLink ? "Link Copied!" : "Copy Link"}</span>
+                </button>
+
+                <a
+                  href={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(activeUC.townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(activeUC.chairman.name)}&status=${selectedIssue.status}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer"
+                >
+                  <ExternalLink className="w-4 h-4 text-slate-300" />
+                  <span>Open Full Card</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
