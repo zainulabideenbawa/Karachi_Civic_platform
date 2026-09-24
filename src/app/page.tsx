@@ -20,6 +20,9 @@ import { SearchModal } from "@/components/modals/SearchModal";
 import { UCPollsModal } from "@/components/modals/UCPollsModal";
 import { NGOsModal } from "@/components/modals/NGOsModal";
 import { BaithakPanelModal } from "@/components/modals/BaithakPanelModal";
+import { LeaderProfileModal } from "@/components/modals/LeaderProfileModal";
+import { BecomeLeaderModal } from "@/components/modals/BecomeLeaderModal";
+import { LeaderDashboardModal } from "@/components/dashboards/LeaderDashboardModal";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -57,6 +60,9 @@ function CivicAppContent() {
       <UCPollsModal />
       <NGOsModal />
       <BaithakPanelModal />
+      <LeaderProfileModal />
+      <BecomeLeaderModal />
+      <LeaderDashboardModal />
     </div>
   );
 }

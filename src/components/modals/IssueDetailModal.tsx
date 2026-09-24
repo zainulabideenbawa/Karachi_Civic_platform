@@ -20,6 +20,7 @@ import {
   Check,
   ExternalLink,
   Download,
+  Award,
 } from "lucide-react";
 
 export const IssueDetailModal: React.FC = () => {
@@ -28,6 +29,7 @@ export const IssueDetailModal: React.FC = () => {
     setSelectedIssue,
     toggleAffected,
     voteConfirmation,
+    setIsLeaderDashboardOpen,
     showToast,
     activeUC,
   } = useCivic();
@@ -317,6 +319,68 @@ export const IssueDetailModal: React.FC = () => {
               </p>
             </div>
           )}
+
+          {/* 4b. Community Leader Response (Spec Addendum 01, Section 3 - Always below official response) */}
+          {selectedIssue.leaderResponse && (
+            <div className="p-3.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-indigo-600" />
+                  <span>Community Leader Response</span>
+                </span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                  {selectedIssue.leaderResponse.leaderName}
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                &ldquo;{selectedIssue.leaderResponse.message}&rdquo;
+              </p>
+            </div>
+          )}
+
+          {/* 4c. Community Adoption Status (Spec Addendum 01) */}
+          {selectedIssue.adoptedByType ? (
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Adopted for Resolution</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold">
+                  {selectedIssue.adoptedByType === "leader" ? "Community Leader" : "NGO Partner"}
+                </span>
+              </div>
+              <div className="text-slate-600 dark:text-slate-400">
+                Championed by <strong className="text-slate-800 dark:text-slate-200">{selectedIssue.adoptedByName}</strong>
+              </div>
+              {selectedIssue.targetDate && (
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 pt-0.5">
+                  <Clock className="w-3 h-3" /> Committed completion target: {selectedIssue.targetDate}
+                </div>
+              )}
+            </div>
+          ) : selectedIssue.daysOpen >= 7 && selectedIssue.status !== "marked_resolved" && selectedIssue.status !== "confirmed" ? (
+            <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900/40 flex items-center justify-between gap-2 text-xs">
+              <div className="space-y-0.5">
+                <div className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1">
+                  <Award className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Open for Community Adoption</span>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Open $\ge 7$ days without official resolution. Eligible for Community Leader or NGO adoption.
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedIssue(null);
+                  setIsLeaderDashboardOpen(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition cursor-pointer shrink-0"
+              >
+                Adopt in Workbench
+              </button>
+            </div>
+          ) : null}
 
           {/* 5. Evidence & Community Notes */}
           <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   AuditLogEntry,
   CivicEvent,
+  CommunityLeader,
   Issue,
   Language,
   PollRecord,
@@ -14,6 +15,7 @@ import {
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
+  MOCK_COMMUNITY_LEADERS,
   MOCK_EVENTS,
   MOCK_ISSUES,
   MOCK_POLLS,
@@ -75,6 +77,17 @@ interface CivicContextType {
   selectedEventForPanel: CivicEvent | null;
   setSelectedEventForPanel: (event: CivicEvent | null) => void;
   
+  // Community Leaders (Spec Addendum 01)
+  communityLeaders: CommunityLeader[];
+  selectedLeader: CommunityLeader | null;
+  setSelectedLeader: (leader: CommunityLeader | null) => void;
+  isLeaderProfileOpen: boolean;
+  setIsLeaderProfileOpen: (open: boolean) => void;
+  isBecomeLeaderOpen: boolean;
+  setIsBecomeLeaderOpen: (open: boolean) => void;
+  isLeaderDashboardOpen: boolean;
+  setIsLeaderDashboardOpen: (open: boolean) => void;
+  
   // Actions
   toggleAffected: (issueId: string) => void;
   voteConfirmation: (issueId: string, vote: "fixed" | "not_fixed", reason?: string) => void;
@@ -84,6 +97,10 @@ interface CivicContextType {
   flagJurisdiction: (issueId: string, targetBody: string, reason: string) => void;
   rsvpEvent: (eventId: string) => void;
   votePoll: (pollId: string, optionId: string) => void;
+  adoptIssue: (issueId: string, adopterType: "leader" | "ngo", adopterId: string, adopterName: string, targetDays: number) => { success: boolean; message: string };
+  resolveAdoptedIssue: (issueId: string, afterPhotoUrl: string, note: string) => { success: boolean; message: string };
+  applyBecomeLeader: (data: { realName: string; photoUrl: string; bio: string; whyServe: string; party: string; plansToContest: "yes" | "no" | "prefer_not_to_say"; ucId: string }) => void;
+  followLeader: (leaderId: string) => void;
   
   // Toasts with Undo
   toast: ToastMessage | null;
@@ -121,6 +138,13 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [offlineQueueCount] = useState(0);
+
+  // Community Leaders (Spec Addendum 01)
+  const [communityLeaders, setCommunityLeaders] = useState<CommunityLeader[]>(MOCK_COMMUNITY_LEADERS);
+  const [selectedLeader, setSelectedLeader] = useState<CommunityLeader | null>(null);
+  const [isLeaderProfileOpen, setIsLeaderProfileOpen] = useState(false);
+  const [isBecomeLeaderOpen, setIsBecomeLeaderOpen] = useState(false);
+  const [isLeaderDashboardOpen, setIsLeaderDashboardOpen] = useState(false);
 
   // Sync with Supabase on mount
   useEffect(() => {
@@ -613,6 +637,208 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     showToast("Your vote has been counted anonymously!");
   };
 
+  // Community Leader Actions (Spec Addendum 01)
+  const adoptIssue = (
+    issueId: string,
+    adopterType: "leader" | "ngo",
+    adopterId: string,
+    adopterName: string,
+    targetDays: number
+  ): { success: boolean; message: string } => {
+    const targetIssue = issues.find((i) => i.id === issueId);
+    if (!targetIssue) {
+      return { success: false, message: "Issue not found." };
+    }
+
+    // Anti-gaming rule 1: Issues reported by the leader cannot be adopted by that leader
+    if (adopterType === "leader" && targetIssue.reporterId === adopterId) {
+      return { success: false, message: "Anti-Gaming Rule: You cannot adopt an issue reported by yourself or your team." };
+    }
+
+    // Anti-gaming rule 2: Must be at least 7 days old
+    if (targetIssue.daysOpen < 7) {
+      return { success: false, message: `Issue must be at least 7 days old before community adoption (currently ${targetIssue.daysOpen} days).` };
+    }
+
+    // Anti-gaming rule 3: Cannot adopt if already adopted
+    if (targetIssue.adoptedByType) {
+      return { success: false, message: `Issue is already adopted by ${targetIssue.adoptedByName || "another entity"}.` };
+    }
+
+    // Anti-gaming rule 4: Adoption blocked if official marked in progress within last 14 days
+    if (targetIssue.status === "in_progress" && targetIssue.daysOpen <= 14) {
+      return { success: false, message: "Adoption blocked: An elected official is currently actively working on this issue." };
+    }
+
+    // Anti-gaming rule 5: Max 60 days target
+    const clampedTargetDays = Math.min(Math.max(targetDays, 1), 60);
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + clampedTargetDays);
+    const targetDateStr = targetDate.toISOString().split("T")[0];
+
+    // Update Issue state
+    setIssues((prev) =>
+      prev.map((iss) => {
+        if (iss.id === issueId) {
+          return {
+            ...iss,
+            adoptedByType: adopterType,
+            adoptedById: adopterId,
+            adoptedByName: adopterName,
+            adoptedAt: new Date().toISOString(),
+            targetDate: targetDateStr,
+            status: "in_progress",
+          };
+        }
+        return iss;
+      })
+    );
+
+    // Update leader adoption count if leader
+    if (adopterType === "leader") {
+      setCommunityLeaders((prev) =>
+        prev.map((lead) =>
+          lead.id === adopterId || lead.userId === adopterId
+            ? { ...lead, activeAdoptionsCount: lead.activeAdoptionsCount + 1 }
+            : lead
+        )
+      );
+    }
+
+    // Try syncing to Supabase in background
+    supabase
+      .from("issues")
+      .update({
+        adopted_by_type: adopterType,
+        adopted_by_id: adopterId,
+        adopted_by_name: adopterName,
+        adopted_at: new Date().toISOString(),
+        target_date: targetDateStr,
+        status: "in_progress",
+      })
+      .eq("id", issueId)
+      .then(() => {});
+
+    showToast(`Issue ${issueId} successfully adopted! Committed target: ${targetDateStr}`);
+    return { success: true, message: `Issue adopted with target date ${targetDateStr}.` };
+  };
+
+  const resolveAdoptedIssue = (
+    issueId: string,
+    afterPhotoUrl: string,
+    note: string
+  ): { success: boolean; message: string } => {
+    const targetIssue = issues.find((i) => i.id === issueId);
+    if (!targetIssue) {
+      return { success: false, message: "Issue not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + 7);
+
+    setIssues((prev) =>
+      prev.map((iss) => {
+        if (iss.id === issueId) {
+          return {
+            ...iss,
+            status: "marked_resolved",
+            afterPhotos: [
+              ...(iss.afterPhotos || []),
+              {
+                id: `p-after-lead-${Date.now()}`,
+                kind: "after",
+                url: afterPhotoUrl,
+                capturedAt: nowIso,
+                lat: iss.lat,
+                lng: iss.lng,
+                uploaderName: iss.adoptedByName || "Community Leader",
+              },
+            ],
+            confirmationWindow: {
+              markedResolvedAt: nowIso,
+              expiresAt: expiry.toISOString(),
+              fixedVotes: 1,
+              notFixedVotes: 0,
+            },
+          };
+        }
+        return iss;
+      })
+    );
+
+    if (targetIssue.adoptedById) {
+      setCommunityLeaders((prev) =>
+        prev.map((lead) =>
+          lead.id === targetIssue.adoptedById || lead.userId === targetIssue.adoptedById
+            ? {
+                ...lead,
+                activeAdoptionsCount: Math.max(0, lead.activeAdoptionsCount - 1),
+                resolvedCountLifetime: lead.resolvedCountLifetime + 1,
+              }
+            : lead
+        )
+      );
+    }
+
+    showToast("Resolution submitted with after photo! 7-day citizen confirmation window opened.");
+    return { success: true, message: "Resolution submitted for citizen confirmation." };
+  };
+
+  const applyBecomeLeader = (data: {
+    realName: string;
+    photoUrl: string;
+    bio: string;
+    whyServe: string;
+    party: string;
+    plansToContest: "yes" | "no" | "prefer_not_to_say";
+    ucId: string;
+  }) => {
+    const ucObj = allUCs.find((u) => u.id === data.ucId) || activeUC;
+    const newLeader: CommunityLeader = {
+      id: `lead-${Date.now()}`,
+      userId: `user-${Date.now()}`,
+      ucId: ucObj.id,
+      ucName: ucObj.name,
+      townId: ucObj.townId,
+      townName: ucObj.townName,
+      realName: data.realName,
+      slug: data.realName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      photoUrl: data.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=240&h=240&fit=crop&crop=face",
+      bio: data.bio,
+      whyServe: data.whyServe,
+      party: data.party || "Independent",
+      plansToContest: data.plansToContest,
+      identityVerified: false,
+      identityVerifiedAt: "",
+      status: "pending",
+      strikes: 0,
+      score: 50.0,
+      rankInUc: communityLeaders.filter((c) => c.ucId === ucObj.id).length + 1,
+      rankInTown: 15,
+      rankInCity: 100,
+      trend30d: 0,
+      hasEnoughData: false,
+      activeAdoptionsCount: 0,
+      resolvedCountLifetime: 0,
+      onTimeRate: 100,
+      eventsCount: 0,
+      pledgesKept: 0,
+      pledgesTotal: 0,
+      thankYouCount: 0,
+      fixSatisfaction: 0,
+      teamMembers: [],
+    };
+
+    setCommunityLeaders((prev) => [newLeader, ...prev]);
+    showToast("Community Leader application submitted! Video call identity check scheduled.");
+  };
+
+  const followLeader = (leaderId: string) => {
+    const leader = communityLeaders.find((l) => l.id === leaderId);
+    showToast(`Now following ${leader?.realName || "Community Leader"}. You'll receive updates on their adoptions & events!`);
+  };
+
   return (
     <CivicContext.Provider
       value={{
@@ -651,6 +877,15 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setIsBaithakPanelModalOpen,
         selectedEventForPanel,
         setSelectedEventForPanel,
+        communityLeaders,
+        selectedLeader,
+        setSelectedLeader,
+        isLeaderProfileOpen,
+        setIsLeaderProfileOpen,
+        isBecomeLeaderOpen,
+        setIsBecomeLeaderOpen,
+        isLeaderDashboardOpen,
+        setIsLeaderDashboardOpen,
         toggleAffected,
         voteConfirmation,
         addNewIssue,
@@ -659,6 +894,10 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         flagJurisdiction,
         rsvpEvent,
         votePoll,
+        adoptIssue,
+        resolveAdoptedIssue,
+        applyBecomeLeader,
+        followLeader,
         toast,
         showToast,
         dismissToast,

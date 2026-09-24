@@ -14,6 +14,7 @@ export type UserRole =
   | "citizen"
   | "verified_resident"
   | "official"
+  | "community_leader"
   | "ngo"
   | "think_tank"
   | "admin";
@@ -144,6 +145,17 @@ export interface Issue {
     adoptedAt: string;
     targetDate: string;
   };
+  adoptedByType?: "ngo" | "leader";
+  adoptedById?: string;
+  adoptedByName?: string;
+  adoptedAt?: string;
+  targetDate?: string;
+  leaderResponse?: {
+    leaderId: string;
+    leaderName: string;
+    respondedAt: string;
+    message: string;
+  };
   jurisdictionFlag?: {
     flaggedBy: string;
     suggestedBody: string;
@@ -202,6 +214,45 @@ export interface PromiseRecord {
   dueDate: string;
   status: "pending" | "kept" | "broken";
   proofPhoto?: string;
+  ownerType?: "official" | "leader";
+  ownerId?: string;
+  ownerName?: string;
+}
+
+export interface CommunityLeader {
+  id: string;
+  userId: string;
+  ucId: string;
+  ucName: string;
+  townId: string;
+  townName: string;
+  realName: string;
+  slug: string;
+  photoUrl: string;
+  bio: string;
+  whyServe: string;
+  party: string;
+  plansToContest: "yes" | "no" | "prefer_not_to_say";
+  identityVerified: boolean;
+  identityVerifiedAt: string;
+  status: "pending" | "active" | "suspended" | "removed";
+  strikes: number;
+  score: number;
+  rankInUc: number;
+  rankInTown: number;
+  rankInCity: number;
+  trend30d: number;
+  hasEnoughData: boolean;
+  activeAdoptionsCount: number;
+  resolvedCountLifetime: number;
+  onTimeRate: number;
+  eventsCount: number;
+  pledgesKept: number;
+  pledgesTotal: number;
+  thankYouCount: number;
+  fixSatisfaction: number;
+  teamMembers: { id: string; name: string; role: string }[];
+  isFrozenForElection?: boolean;
 }
 
 export interface PollRecord {

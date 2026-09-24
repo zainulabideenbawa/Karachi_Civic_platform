@@ -13,6 +13,9 @@ import {
   FileText,
   Calendar,
   Layers,
+  Award,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -25,6 +28,8 @@ export const MeTab: React.FC = () => {
     activeRole,
     offlineQueueCount,
     setIsWhatsAppAuthOpen,
+    setIsBecomeLeaderOpen,
+    setIsLeaderDashboardOpen,
     showToast,
   } = useCivic();
 
@@ -109,6 +114,45 @@ export const MeTab: React.FC = () => {
           <div className="text-[10px] font-semibold text-slate-400 uppercase">
             Offline Queue
           </div>
+        </div>
+      </section>
+
+      {/* Community Leadership (Spec Addendum 01, Workflow W11) */}
+      <section className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-indigo-800/60 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 uppercase tracking-wider">
+              <Award className="w-4 h-4 text-indigo-400" />
+              Community Leadership • Aspiring Reps
+            </div>
+            <h3 className="text-sm font-black text-white">
+              Adopt Issues. Build a Verified Track Record.
+            </h3>
+            <p className="text-[11px] text-slate-300 max-w-sm">
+              Residents who want to contest local elections or serve their UC can adopt issues, make pledges, and earn a public score.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={() => setIsBecomeLeaderOpen(true)}
+            className="w-full py-2.5 px-3 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+          >
+            <span>Become a Community Leader</span>
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </button>
+
+          <button
+            onClick={() => setIsLeaderDashboardOpen(true)}
+            className="w-full py-2.5 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-indigo-400/30"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              Leader Workbench
+            </span>
+            <ChevronRight className="w-4 h-4 text-indigo-200" />
+          </button>
         </div>
       </section>
 
