@@ -16,7 +16,39 @@ import {
   X,
   Zap,
   Info,
+  Trash2,
+  Waves,
+  Lightbulb,
+  Construction,
+  Trees,
+  ShieldAlert,
+  Bug,
+  HeartPulse,
+  Droplets,
+  Flame,
+  HelpCircle,
+  UploadCloud,
 } from "lucide-react";
+
+// Icon mapping helper
+const getCategoryIcon = (iconName: string) => {
+  switch (iconName) {
+    case "Trash2": return <Trash2 className="w-6 h-6" />;
+    case "Waves": return <Waves className="w-6 h-6" />;
+    case "Lightbulb": return <Lightbulb className="w-6 h-6" />;
+    case "Construction": return <Construction className="w-6 h-6" />;
+    case "Trees": return <Trees className="w-6 h-6" />;
+    case "ShieldAlert": return <ShieldAlert className="w-6 h-6" />;
+    case "Bug": return <Bug className="w-6 h-6" />;
+    case "HeartPulse": return <HeartPulse className="w-6 h-6" />;
+    case "Droplets": return <Droplets className="w-6 h-6" />;
+    case "Zap": return <Zap className="w-6 h-6" />;
+    case "Flame": return <Flame className="w-6 h-6" />;
+    case "HelpCircle":
+    default:
+      return <HelpCircle className="w-6 h-6" />;
+  }
+};
 
 export const ReportTab: React.FC = () => {
   const {
@@ -41,6 +73,7 @@ export const ReportTab: React.FC = () => {
   const [gpsAccuracy] = useState<number>(14); // 14 meters (well under 100m limit)
   const [matchingDuplicate, setMatchingDuplicate] = useState<Issue | null>(null);
   const [createdIssueId, setCreatedIssueId] = useState<string>("");
+  const [isUploadingToR2, setIsUploadingToR2] = useState<boolean>(false);
 
   // Camera video/stream refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -52,7 +85,7 @@ export const ReportTab: React.FC = () => {
   useEffect(() => {
     let stream: MediaStream | null = null;
     if (step === 1) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices
           .getUserMedia({
             video: { facingMode: "environment" },
@@ -66,7 +99,6 @@ export const ReportTab: React.FC = () => {
             }
           })
           .catch(() => {
-            // Camera unavailable or denied, fallback to simulated viewfinder
             setCameraActive(false);
           });
       }
@@ -91,9 +123,7 @@ export const ReportTab: React.FC = () => {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/webp", 0.85);
         setCapturedPhotos((prev) => [...prev, dataUrl]);
-        if (capturedPhotos.length === 0) {
-          setStep(2); // Auto progress to category selection
-        }
+        setStep(2);
         return;
       }
     }
@@ -123,14 +153,38 @@ export const ReportTab: React.FC = () => {
 
     if (possibleDuplicate) {
       setMatchingDuplicate(possibleDuplicate);
-      setStep(3); // Show duplicate confirmation
+      setStep(3);
     } else {
-      setStep(4); // Move directly to Review
+      setStep(4);
     }
   };
 
-  // Submit Final Issue
-  const handleSubmitIssue = () => {
+  // Submit Final Issue with Cloudflare R2 Upload
+  const handleSubmitIssue = async () => {
+    setIsUploadingToR2(true);
+    let finalPhotoUrl = capturedPhotos[0];
+
+    // Upload to Cloudflare R2 via Next.js Route Handler
+    try {
+      if (capturedPhotos[0]?.startsWith("data:")) {
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: capturedPhotos[0],
+          }),
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.url) {
+          finalPhotoUrl = uploadData.url;
+        }
+      }
+    } catch (err) {
+      console.warn("R2 upload fallback notice:", err);
+    } finally {
+      setIsUploadingToR2(false);
+    }
+
     const categoryObj = CIVIC_CATEGORIES.find((c) => c.id === selectedCategory);
     const categoryName = categoryObj?.name.en || "Civic Issue";
 
@@ -153,18 +207,20 @@ export const ReportTab: React.FC = () => {
       reporterId: isAnonymous ? "user-anon" : "user-101",
       status: "open",
       eligible: categoryObj?.scoredInMVP || false,
-      photos: capturedPhotos.map((url, idx) => ({
-        id: `photo-${Date.now()}-${idx}`,
-        kind: "report",
-        url,
-        capturedAt: new Date().toISOString(),
-        lat: activeUC.lat,
-        lng: activeUC.lng,
-      })),
+      photos: [
+        {
+          id: `photo-${Date.now()}`,
+          kind: "report",
+          url: finalPhotoUrl,
+          capturedAt: new Date().toISOString(),
+          lat: activeUC.lat,
+          lng: activeUC.lng,
+        },
+      ],
     });
 
     setCreatedIssueId(newId);
-    setStep(5); // Success Screen
+    setStep(5);
   };
 
   return (
@@ -184,7 +240,7 @@ export const ReportTab: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
 
-            {/* GPS Dot (Section 11.0c) */}
+            {/* GPS Dot */}
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>Location Ready (±{gpsAccuracy}m)</span>
@@ -225,7 +281,7 @@ export const ReportTab: React.FC = () => {
               </div>
             )}
 
-            {/* Target Reticle Overlay */}
+            {/* Reticle */}
             <div className="absolute inset-x-8 inset-y-16 border border-white/30 rounded-2xl pointer-events-none flex flex-col justify-between p-4">
               <div className="flex justify-between">
                 <span className="w-4 h-4 border-t-2 border-l-2 border-teal-400" />
@@ -257,7 +313,7 @@ export const ReportTab: React.FC = () => {
               )}
             </div>
 
-            {/* Main Shutter Button */}
+            {/* Shutter Button */}
             <button
               onClick={handleCapture}
               className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-teal-600 hover:bg-teal-700 active:scale-95 transition cursor-pointer shadow-2xl"
@@ -280,7 +336,7 @@ export const ReportTab: React.FC = () => {
         </div>
       )}
 
-      {/* ================= STEP 2: CATEGORY PICKER (3x4 Grid) ================= */}
+      {/* ================= STEP 2: CATEGORY PICKER (3x4 Grid with Icons) ================= */}
       {step === 2 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -300,7 +356,7 @@ export const ReportTab: React.FC = () => {
             </div>
           </div>
 
-          {/* 3x4 Icon Grid */}
+          {/* 3x4 Icon Grid with Genuine Lucide Icons */}
           <div className="grid grid-cols-3 gap-2.5">
             {CIVIC_CATEGORIES.map((cat) => (
               <button
@@ -309,12 +365,10 @@ export const ReportTab: React.FC = () => {
                 className="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500 hover:shadow-md transition text-center cursor-pointer active:scale-95 group"
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center mb-2 transition group-hover:scale-110"
+                  className="w-12 h-12 rounded-full flex items-center justify-center mb-2 transition group-hover:scale-110 shadow-xs"
                   style={{ backgroundColor: cat.bgTint, color: cat.color }}
                 >
-                  <span className="text-base font-bold">
-                    {cat.name.en.slice(0, 2).toUpperCase()}
-                  </span>
+                  {getCategoryIcon(cat.iconName)}
                 </div>
                 <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">
                   {cat.name.en}
@@ -362,7 +416,6 @@ export const ReportTab: React.FC = () => {
           </div>
 
           <div className="space-y-2 pt-2">
-            {/* Yes, add me button */}
             <button
               onClick={() => {
                 toggleAffected(matchingDuplicate.id);
@@ -375,7 +428,6 @@ export const ReportTab: React.FC = () => {
               Yes, Add Me as Affected (Me Too)
             </button>
 
-            {/* No, it's different button */}
             <button
               onClick={() => setStep(4)}
               className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition cursor-pointer"
@@ -427,13 +479,14 @@ export const ReportTab: React.FC = () => {
                   <MapPin className="w-3.5 h-3.5 text-teal-600" />
                   <span>{activeUC.name}</span>
                 </div>
-                <div className="text-[11px] text-slate-400">
-                  GPS precision: ±{gpsAccuracy}m · Ready for audit
+                <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <UploadCloud className="w-3 h-3 text-teal-600" />
+                  <span>Cloudflare R2 storage target: civickarachi</span>
                 </div>
               </div>
             </div>
 
-            {/* Optional Description */}
+            {/* Description */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Optional Short Note (Urdu, Roman Urdu or English)
@@ -488,9 +541,14 @@ export const ReportTab: React.FC = () => {
           {/* Submit Action */}
           <button
             onClick={handleSubmitIssue}
-            className="w-full py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-lg shadow-teal-700/25 transition cursor-pointer"
+            disabled={isUploadingToR2}
+            className="w-full py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-lg shadow-teal-700/25 transition cursor-pointer flex items-center justify-center gap-2"
           >
-            Submit Verified Civic Report
+            {isUploadingToR2 ? (
+              <span>Uploading to Cloudflare R2...</span>
+            ) : (
+              <span>Submit Verified Civic Report</span>
+            )}
           </button>
         </div>
       )}

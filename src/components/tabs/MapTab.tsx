@@ -13,10 +13,17 @@ export const MapTab: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [monsoonMode, setMonsoonMode] = useState<boolean>(false);
   const [selectedIssuePin, setSelectedIssuePin] = useState<Issue | null>(null);
 
   // Filter issues
   const filteredIssues = issues.filter((iss) => {
+    if (monsoonMode) {
+      // Monsoon Mode: Only dangerous drainage, potholes/flooding, and electrical wires
+      const isDrainOrFlood = iss.categoryId === "drains" || iss.categoryId === "streets" || iss.categoryId === "electricity";
+      const isHazardOrOpen = iss.severity === "dangerous" || iss.status !== "confirmed";
+      return isDrainOrFlood && isHazardOrOpen;
+    }
     if (selectedCategory !== "all" && iss.categoryId !== selectedCategory) return false;
     if (selectedStatus !== "all" && iss.status !== selectedStatus) return false;
     return true;
@@ -77,25 +84,40 @@ export const MapTab: React.FC = () => {
           ))}
         </div>
 
-        {/* Status Pills Bar */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs shadow-md border border-slate-200/50 dark:border-slate-700/50">
-            <Layers className="w-3.5 h-3.5 text-teal-600" />
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-hidden"
+        {/* Status Pills Bar & Monsoon Emergency Mode */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs shadow-md border border-slate-200/50 dark:border-slate-700/50">
+              <Layers className="w-3.5 h-3.5 text-teal-600" />
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-hidden"
+              >
+                <option value="all">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="marked_resolved">Waiting Confirmation</option>
+                <option value="confirmed">Confirmed Fixed</option>
+              </select>
+            </div>
+
+            {/* Monsoon Mode Emergency Toggle (Section 15.1) */}
+            <button
+              onClick={() => setMonsoonMode(!monsoonMode)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-md cursor-pointer ${
+                monsoonMode
+                  ? "bg-sky-600 text-white ring-2 ring-sky-300 animate-pulse"
+                  : "bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 border border-slate-200/50"
+              }`}
             >
-              <option value="all">All Statuses</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="marked_resolved">Waiting Confirmation</option>
-              <option value="confirmed">Confirmed Fixed</option>
-            </select>
+              <span>🌧 Monsoon Floods</span>
+              {monsoonMode && <span className="text-[10px] bg-sky-800 px-1 rounded">LIVE</span>}
+            </button>
           </div>
 
           <div className="text-[11px] font-semibold text-white/90 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg shadow-md">
-            Showing {filteredIssues.length} issues in {activeUC.townName}
+            {monsoonMode ? "Emergency Water & Road Hazards" : `Showing ${filteredIssues.length} issues in ${activeUC.townName}`}
           </div>
         </div>
       </div>

@@ -19,10 +19,13 @@ import { AdminConsoleModal } from "@/components/dashboards/AdminConsoleModal";
 import { SearchModal } from "@/components/modals/SearchModal";
 
 function CivicAppContent() {
-  const { activeTab } = useCivic();
+  const { activeTab, language } = useCivic();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans antialiased selection:bg-teal-500 selection:text-white">
+    <div
+      dir={language === "ur" ? "rtl" : "ltr"}
+      className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans antialiased selection:bg-teal-500 selection:text-white"
+    >
       {/* Top Application Header */}
       <Header />
 
