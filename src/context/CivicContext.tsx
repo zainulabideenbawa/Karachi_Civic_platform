@@ -21,6 +21,11 @@ import {
   MOCK_TOWNS,
   MOCK_UCS,
 } from "@/lib/mock-data";
+import {
+  supabase,
+  recordAffectedVote,
+  recordConfirmationVote,
+} from "@/lib/supabase/client";
 
 export type NavTab = "my-uc" | "map" | "report" | "rankings" | "me";
 
@@ -83,14 +88,14 @@ const CivicContext = createContext<CivicContextType | undefined>(undefined);
 
 export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<NavTab>("my-uc");
-  const [allUCs] = useState<UC[]>(MOCK_UCS);
+  const [allUCs, setAllUCs] = useState<UC[]>(MOCK_UCS);
   const [activeUC, setActiveUC] = useState<UC>(MOCK_UCS[0]); // UC-7 Gulshan
   const [allTowns] = useState<Town[]>(MOCK_TOWNS);
   const [issues, setIssues] = useState<Issue[]>(MOCK_ISSUES);
   const [events, setEvents] = useState<CivicEvent[]>(MOCK_EVENTS);
   const [promises] = useState<PromiseRecord[]>(MOCK_PROMISES);
   const [polls, setPolls] = useState<PollRecord[]>(MOCK_POLLS);
-  const [auditLog] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
 
   const [activeRole, setActiveRole] = useState<UserRole>("citizen");
   const [language, setLanguage] = useState<Language>("en");
@@ -104,6 +109,99 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [offlineQueueCount] = useState(0);
+
+  // Sync with Supabase on mount
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        // Fetch issues from Supabase
+        const { data: dbIssues, error: issueErr } = await supabase
+          .from("issues")
+          .select("*, issue_photos(*)")
+          .order("created_at", { ascending: false });
+
+        if (!issueErr && dbIssues && dbIssues.length > 0) {
+          const mappedIssues: Issue[] = dbIssues.map((row) => ({
+            id: row.id,
+            ucId: row.uc_id,
+            ucName: row.uc_name,
+            townId: row.town_id,
+            townName: row.town_name,
+            categoryId: row.category_id,
+            categoryName: row.category_name,
+            subCategory: row.sub_category,
+            title: row.title,
+            description: row.description,
+            lat: Number(row.lat),
+            lng: Number(row.lng),
+            addressApprox: row.address_approx,
+            gpsAccuracyMeters: Number(row.gps_accuracy_meters),
+            severity: row.severity as "normal" | "dangerous",
+            isAnonymous: row.is_anonymous,
+            reporterName: row.reporter_name,
+            reporterId: row.reporter_id,
+            status: row.status as Issue["status"],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            daysOpen: row.days_open,
+            eligible: row.eligible,
+            affectedCount: row.affected_count,
+            weightedAffected: Number(row.weighted_affected),
+            photos: (row.issue_photos || [])
+              .filter((p: { kind: string }) => p.kind === "report")
+              .map((p: { id: string; kind: "report"; url: string; captured_at: string; lat: number; lng: number; uploader_name?: string }) => ({
+                id: p.id,
+                kind: p.kind,
+                url: p.url,
+                capturedAt: p.captured_at,
+                lat: Number(p.lat),
+                lng: Number(p.lng),
+                uploaderName: p.uploader_name,
+              })),
+            afterPhotos: (row.issue_photos || [])
+              .filter((p: { kind: string }) => p.kind === "after")
+              .map((p: { id: string; kind: "after"; url: string; captured_at: string; lat: number; lng: number; uploader_name?: string }) => ({
+                id: p.id,
+                kind: p.kind,
+                url: p.url,
+                capturedAt: p.captured_at,
+                lat: Number(p.lat),
+                lng: Number(p.lng),
+                uploaderName: p.uploader_name,
+              })),
+            officialResponse: row.official_response,
+            confirmationWindow: row.confirmation_window,
+          }));
+
+          setIssues(mappedIssues);
+        }
+
+        // Fetch audit log
+        const { data: dbLogs } = await supabase
+          .from("audit_log")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (dbLogs && dbLogs.length > 0) {
+          setAuditLog(
+            dbLogs.map((l) => ({
+              id: l.id,
+              date: l.date_str,
+              actor: l.actor,
+              action: l.action,
+              affectedUcOrOfficial: l.affected_entity,
+              reason: l.reason,
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Could not sync with Supabase, using local state cache:", err);
+      }
+    }
+
+    loadFromSupabase();
+  }, []);
 
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {
@@ -163,8 +261,10 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       );
     }
 
+    // Persist to Supabase asynchronously
+    recordAffectedVote(issueId, "user-101", 1.0);
+
     showToast("Count updated: You marked 'I am affected'", () => {
-      // Revert action
       toggleAffected(issueId);
     });
   };
@@ -228,6 +328,9 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       );
     }
 
+    // Persist to Supabase RPC
+    recordConfirmationVote(issueId, "user-101", vote, reason);
+
     showToast(
       vote === "fixed"
         ? "Confirmed! Thank you for verifying the municipal fix."
@@ -255,6 +358,51 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     };
 
     setIssues((prev) => [fullIssue, ...prev]);
+
+    // Persist to Supabase asynchronously
+    (async () => {
+      try {
+        await supabase.from("issues").insert({
+          id,
+          uc_id: fullIssue.ucId,
+          uc_name: fullIssue.ucName,
+          town_id: fullIssue.townId,
+          town_name: fullIssue.townName,
+          category_id: fullIssue.categoryId,
+          category_name: fullIssue.categoryName,
+          title: fullIssue.title,
+          description: fullIssue.description,
+          lat: fullIssue.lat,
+          lng: fullIssue.lng,
+          address_approx: fullIssue.addressApprox,
+          gps_accuracy_meters: fullIssue.gpsAccuracyMeters,
+          severity: fullIssue.severity,
+          is_anonymous: fullIssue.isAnonymous,
+          reporter_name: fullIssue.reporterName,
+          reporter_id: fullIssue.reporterId,
+          status: "open",
+          eligible: fullIssue.eligible,
+          affected_count: 1,
+          weighted_affected: 1.0,
+        });
+
+        if (fullIssue.photos.length > 0) {
+          const photoInserts = fullIssue.photos.map((p, idx) => ({
+            id: `p-${id}-${idx}`,
+            issue_id: id,
+            kind: "report",
+            url: p.url,
+            lat: fullIssue.lat,
+            lng: fullIssue.lng,
+            uploader_name: fullIssue.reporterName,
+          }));
+          await supabase.from("issue_photos").insert(photoInserts);
+        }
+      } catch (err: unknown) {
+        console.warn("Supabase issue insert warning:", err);
+      }
+    })();
+
     showToast(
       `Issue #${id} reported! Added to ${newIssueData.ucName}'s public scorecard.`,
       () => {
@@ -271,25 +419,38 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     message: string,
     statusUpdate: Issue["status"]
   ) => {
+    const respObj = {
+      officialId: activeUC.chairman.id,
+      officialName: activeUC.chairman.name,
+      seatTitle: activeUC.chairman.seatTitle,
+      respondedAt: new Date().toISOString(),
+      message,
+      statusUpdate,
+    };
+
     setIssues((prev) =>
       prev.map((iss) => {
         if (iss.id === issueId) {
           return {
             ...iss,
             status: statusUpdate,
-            officialResponse: {
-              officialId: activeUC.chairman.id,
-              officialName: activeUC.chairman.name,
-              seatTitle: activeUC.chairman.seatTitle,
-              respondedAt: new Date().toISOString(),
-              message,
-              statusUpdate,
-            },
+            officialResponse: respObj,
           };
         }
         return iss;
       })
     );
+
+    // Persist to Supabase
+    supabase
+      .from("issues")
+      .update({
+        status: statusUpdate,
+        official_response: respObj,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", issueId);
+
     showToast("Official response pinned to public issue record");
   };
 
@@ -299,6 +460,23 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     afterPhotoUrl: string,
     note: string
   ) => {
+    const respObj = {
+      officialId: activeUC.chairman.id,
+      officialName: activeUC.chairman.name,
+      seatTitle: activeUC.chairman.seatTitle,
+      respondedAt: new Date().toISOString(),
+      message: note || "Work completed on site. Live after-photo uploaded for citizen verification.",
+      statusUpdate: "marked_resolved" as const,
+    };
+
+    const confirmObj = {
+      markedResolvedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      fixedVotes: 0,
+      notFixedVotes: 0,
+      userVoted: undefined,
+    };
+
     setIssues((prev) =>
       prev.map((iss) => {
         if (iss.id === issueId) {
@@ -316,26 +494,35 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
                 uploaderName: `${activeUC.chairman.seatTitle} Inspection Team`,
               },
             ],
-            officialResponse: {
-              officialId: activeUC.chairman.id,
-              officialName: activeUC.chairman.name,
-              seatTitle: activeUC.chairman.seatTitle,
-              respondedAt: new Date().toISOString(),
-              message: note || "Work completed on site. Live after-photo uploaded for citizen verification.",
-              statusUpdate: "marked_resolved",
-            },
-            confirmationWindow: {
-              markedResolvedAt: new Date().toISOString(),
-              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              fixedVotes: 0,
-              notFixedVotes: 0,
-              userVoted: undefined,
-            },
+            officialResponse: respObj,
+            confirmationWindow: confirmObj,
           };
         }
         return iss;
       })
     );
+
+    // Persist to Supabase
+    supabase
+      .from("issues")
+      .update({
+        status: "marked_resolved",
+        official_response: respObj,
+        confirmation_window: confirmObj,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", issueId);
+
+    supabase.from("issue_photos").insert({
+      id: `p-after-${Date.now()}`,
+      issue_id: issueId,
+      kind: "after",
+      url: afterPhotoUrl,
+      lat: activeUC.lat,
+      lng: activeUC.lng,
+      uploader_name: `${activeUC.chairman.seatTitle} Inspection Team`,
+    });
+
     showToast("Work marked resolved! 7-day citizen confirmation window opened.");
   };
 
@@ -345,23 +532,34 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     targetBody: string,
     reason: string
   ) => {
+    const flagObj = {
+      flaggedBy: activeUC.chairman.name,
+      suggestedBody: targetBody,
+      reason,
+      rulingStatus: "pending" as const,
+    };
+
     setIssues((prev) =>
       prev.map((iss) => {
         if (iss.id === issueId) {
           return {
             ...iss,
             status: "jurisdiction_flagged",
-            jurisdictionFlag: {
-              flaggedBy: activeUC.chairman.name,
-              suggestedBody: targetBody,
-              reason,
-              rulingStatus: "pending",
-            },
+            jurisdictionFlag: flagObj,
           };
         }
         return iss;
       })
     );
+
+    supabase
+      .from("issues")
+      .update({
+        status: "jurisdiction_flagged",
+        jurisdiction_flag: flagObj,
+      })
+      .eq("id", issueId);
+
     showToast(`Jurisdiction disputed to ${targetBody}. Sent to admin ruling queue.`);
   };
 
