@@ -238,3 +238,33 @@ export interface AuditLogEntry {
   affectedUcOrOfficial: string;
   reason: string;
 }
+
+export interface NGO {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string;
+  registrationNumber: string;
+  focusCategories: string[];
+  activeTowns: string[];
+  contactPhone: string;
+  contactEmail: string;
+  verifiedBadge: boolean;
+  adoptedIssuesCount: number;
+  resolvedIssuesCount: number;
+  onTimeRate: number; // e.g. 92%
+  citizenThankYous: number;
+  impactRank: number;
+}
+
+export interface PanelApplication {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  userName: string;
+  connectionRole: "resident" | "affected" | "expert" | "ngo";
+  solutionText: string;
+  contactPhone: string;
+  submittedAt: string;
+  status: "submitted" | "shortlisted" | "confirmed";
+}

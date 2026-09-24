@@ -66,6 +66,14 @@ interface CivicContextType {
   setIsAdminConsoleOpen: (open: boolean) => void;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
+  isPollsModalOpen: boolean;
+  setIsPollsModalOpen: (open: boolean) => void;
+  isNGOsModalOpen: boolean;
+  setIsNGOsModalOpen: (open: boolean) => void;
+  isBaithakPanelModalOpen: boolean;
+  setIsBaithakPanelModalOpen: (open: boolean) => void;
+  selectedEventForPanel: CivicEvent | null;
+  setSelectedEventForPanel: (event: CivicEvent | null) => void;
   
   // Actions
   toggleAffected: (issueId: string) => void;
@@ -106,6 +114,10 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isOfficialDashboardOpen, setIsOfficialDashboardOpen] = useState(false);
   const [isAdminConsoleOpen, setIsAdminConsoleOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isPollsModalOpen, setIsPollsModalOpen] = useState(false);
+  const [isNGOsModalOpen, setIsNGOsModalOpen] = useState(false);
+  const [isBaithakPanelModalOpen, setIsBaithakPanelModalOpen] = useState(false);
+  const [selectedEventForPanel, setSelectedEventForPanel] = useState<CivicEvent | null>(null);
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [offlineQueueCount] = useState(0);
@@ -631,6 +643,14 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setIsAdminConsoleOpen,
         isSearchOpen,
         setIsSearchOpen,
+        isPollsModalOpen,
+        setIsPollsModalOpen,
+        isNGOsModalOpen,
+        setIsNGOsModalOpen,
+        isBaithakPanelModalOpen,
+        setIsBaithakPanelModalOpen,
+        selectedEventForPanel,
+        setSelectedEventForPanel,
         toggleAffected,
         voteConfirmation,
         addNewIssue,

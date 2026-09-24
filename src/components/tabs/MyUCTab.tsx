@@ -14,6 +14,9 @@ import {
   HelpCircle,
   Users,
   Building,
+  Mic,
+  ShieldAlert,
+  Award,
 } from "lucide-react";
 import { CIVIC_CATEGORIES } from "@/config/categories";
 
@@ -25,6 +28,10 @@ export const MyUCTab: React.FC = () => {
     promises,
     setSelectedIssue,
     setIsScoreFormulaOpen,
+    setIsPollsModalOpen,
+    setIsNGOsModalOpen,
+    setIsBaithakPanelModalOpen,
+    setSelectedEventForPanel,
     rsvpEvent,
     showToast,
   } = useCivic();
@@ -53,11 +60,29 @@ export const MyUCTab: React.FC = () => {
   return (
     <div className="space-y-4 pb-20 animate-in fade-in duration-200">
       {/* 1. Chairman & UC Report Card Header */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs">
-        <div className="flex items-start justify-between gap-3">
-          {/* Official Info */}
-          <div className="flex items-center gap-3">
-            <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-teal-600/30 shrink-0 bg-slate-100">
+      <section className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3.5">
+        {/* Top District Bar */}
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+          <div className="text-[11px] font-bold text-teal-800 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
+            <span>{activeUC.townName} · {activeUC.name}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
+              Rank #{activeUC.cityRank} of 246
+            </span>
+            <span className="text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-md">
+              +{activeUC.trend30d}
+            </span>
+          </div>
+        </div>
+
+        {/* Main Official Info Row */}
+        <div className="flex items-center justify-between gap-3">
+          {/* Avatar and Name */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 shadow-xs">
               <Image
                 src={activeUC.chairman.photo}
                 alt={activeUC.chairman.name}
@@ -68,43 +93,29 @@ export const MyUCTab: React.FC = () => {
               />
               {activeUC.chairman.isClaimed && (
                 <div
-                  className="absolute bottom-0 inset-x-0 bg-teal-700/90 text-white text-[8px] font-bold text-center py-0.5"
+                  className="absolute bottom-0 inset-x-0 bg-teal-800/90 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider"
                   title="Official profile verified and claimed"
                 >
-                  CLAIMED
+                  Claimed
                 </div>
               )}
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  {activeUC.townName}
-                </span>
-              </div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight truncate">
                 {activeUC.chairman.name}
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                {activeUC.chairman.seatTitle} · <span className="text-slate-600 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span>
+              <p className="text-xs text-slate-500 font-medium truncate pt-0.5">
+                {activeUC.chairman.seatTitle}
               </p>
-              
-              {/* Badges */}
-              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                {activeUC.chairman.badges.map((badge, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-block text-[10px] font-semibold bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-full border border-teal-200/60 dark:border-teal-800"
-                  >
-                    ★ {badge}
-                  </span>
-                ))}
-              </div>
+              <p className="text-[11px] text-slate-400 font-medium truncate">
+                Party: <span className="text-slate-700 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span>
+              </p>
             </div>
           </div>
 
           {/* Score Indicator Ring */}
-          <div className="shrink-0 flex flex-col items-center">
+          <div className="shrink-0 flex flex-col items-center pl-2">
             <ScoreRing
               score={activeUC.score}
               cityRank={activeUC.cityRank}
@@ -113,31 +124,46 @@ export const MyUCTab: React.FC = () => {
             />
             <button
               onClick={() => setIsScoreFormulaOpen(true)}
-              className="text-[11px] text-teal-700 dark:text-teal-400 hover:underline font-medium mt-1 cursor-pointer flex items-center gap-0.5"
+              className="text-[10px] text-teal-700 dark:text-teal-400 hover:underline font-semibold mt-1 cursor-pointer flex items-center gap-0.5"
             >
-              <span>Score Breakdown</span>
+              <span>Score Formula</span>
               <HelpCircle className="w-3 h-3" />
             </button>
           </div>
         </div>
 
+        {/* Badges Strip (Clean, Horizontal Muted Micro-Pills) */}
+        {activeUC.chairman.badges.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+            {activeUC.chairman.badges.map((badge, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700/80"
+              >
+                <Award className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                <span>{badge}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Quick Stats Strip */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-center text-xs">
-          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-center text-xs">
+          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Resolutions</div>
             <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
               {activeUC.resolvedIssues} <span className="text-[10px] text-slate-400 font-normal">/ {activeUC.totalEligibleIssues}</span>
             </div>
           </div>
 
-          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Oldest Issue</div>
             <div className={`text-sm font-bold tabular-nums ${activeUC.oldestOpenDays > 30 ? "text-red-600" : "text-amber-600"}`}>
               {activeUC.oldestOpenDays} days
             </div>
           </div>
 
-          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
             <div className="text-[10px] text-slate-400 uppercase font-semibold">Fix Rating</div>
             <div className="text-sm font-bold text-teal-700 dark:text-teal-400 tabular-nums">
               {activeUC.chairman.fixSatisfaction}★ <span className="text-[10px] text-slate-400 font-normal">({activeUC.chairman.thankYouCount})</span>
@@ -146,32 +172,42 @@ export const MyUCTab: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Quick Action Buttons: Suggest Idea & Polls */}
-      <section className="grid grid-cols-2 gap-2">
+      {/* 2. Quick Action Buttons: Suggest Idea, UC Polls, & NGOs/NO-GOs */}
+      <section className="grid grid-cols-3 gap-2">
         <button
           onClick={() => showToast("Idea submitted for UC-7 community review!")}
-          className="flex items-center gap-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left"
+          className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left shadow-xs"
         >
-          <div className="p-2 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 shrink-0">
+          <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 shrink-0 mb-1.5">
             <Sparkles className="w-4 h-4" />
           </div>
-          <div>
-            <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Suggest an Idea</div>
-            <div className="text-[10px] text-slate-400">Propose for UC Baithak</div>
-          </div>
+          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Suggest Idea</div>
+          <div className="text-[10px] text-slate-400">For UC Baithak</div>
         </button>
 
         <button
-          onClick={() => showToast("Opening UC-7 active polls...")}
-          className="flex items-center gap-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left"
+          onClick={() => setIsPollsModalOpen(true)}
+          className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left shadow-xs group"
         >
-          <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 shrink-0">
+          <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 shrink-0 mb-1.5 group-hover:scale-105 transition">
             <Vote className="w-4 h-4" />
           </div>
-          <div>
-            <div className="text-xs font-bold text-slate-900 dark:text-slate-100">UC Polls</div>
-            <div className="text-[10px] text-slate-400">Vote on priorities</div>
+          <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+            <span>UC Polls</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
+          <div className="text-[10px] text-slate-400">Direct Democracy</div>
+        </button>
+
+        <button
+          onClick={() => setIsNGOsModalOpen(true)}
+          className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left shadow-xs group"
+        >
+          <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 shrink-0 mb-1.5 group-hover:scale-105 transition">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">NGOs &amp; Rules</div>
+          <div className="text-[10px] text-slate-400">NO-GO Firewalls</div>
         </button>
       </section>
 
@@ -281,21 +317,35 @@ export const MyUCTab: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="shrink-0 flex flex-col items-end gap-2">
+                <div className="shrink-0 flex flex-col items-end gap-1.5">
                   <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     <Users className="w-3.5 h-3.5 text-teal-600" />
                     <span>{ev.rsvpCount}</span>
                   </div>
-                  <button
-                    onClick={() => rsvpEvent(ev.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
-                      ev.isUserRsvpd
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300"
-                        : "bg-teal-700 hover:bg-teal-800 text-white"
-                    }`}
-                  >
-                    {ev.isUserRsvpd ? "✓ Attending" : "I'll Join"}
-                  </button>
+                  <div className="flex flex-col gap-1 w-28">
+                    <button
+                      onClick={() => rsvpEvent(ev.id)}
+                      className={`w-full py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
+                        ev.isUserRsvpd
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-300"
+                          : "bg-teal-700 hover:bg-teal-800 text-white shadow-xs"
+                      }`}
+                    >
+                      {ev.isUserRsvpd ? "✓ Attending" : "I'll Join"}
+                    </button>
+                    {(ev.type === "uc_baithak" || ev.type === "town_hall") && (
+                      <button
+                        onClick={() => {
+                          setSelectedEventForPanel(ev);
+                          setIsBaithakPanelModalOpen(true);
+                        }}
+                        className="w-full py-1 rounded-lg text-[10px] font-bold border border-teal-500/40 bg-teal-50/70 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 hover:bg-teal-100 cursor-pointer transition flex items-center justify-center gap-1"
+                      >
+                        <Mic className="w-3 h-3 text-teal-600" />
+                        <span>Apply for Panel</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -17,6 +17,9 @@ import { ScoreFormulaModal } from "@/components/modals/ScoreFormulaModal";
 import { OfficialDashboardModal } from "@/components/dashboards/OfficialDashboardModal";
 import { AdminConsoleModal } from "@/components/dashboards/AdminConsoleModal";
 import { SearchModal } from "@/components/modals/SearchModal";
+import { UCPollsModal } from "@/components/modals/UCPollsModal";
+import { NGOsModal } from "@/components/modals/NGOsModal";
+import { BaithakPanelModal } from "@/components/modals/BaithakPanelModal";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -51,6 +54,9 @@ function CivicAppContent() {
       <OfficialDashboardModal />
       <AdminConsoleModal />
       <SearchModal />
+      <UCPollsModal />
+      <NGOsModal />
+      <BaithakPanelModal />
     </div>
   );
 }

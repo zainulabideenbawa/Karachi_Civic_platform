@@ -28,6 +28,8 @@ import {
   Flame,
   HelpCircle,
   UploadCloud,
+  ArrowRight,
+  Plus,
 } from "lucide-react";
 
 import { compressImageTiers, CompressionResult } from "@/lib/image-compression";
@@ -114,8 +116,19 @@ export const ReportTab: React.FC = () => {
     };
   }, [step]);
 
+  // Remove an angle
+  const removeCapturedPhoto = (index: number) => {
+    setCapturedPhotos((prev) => prev.filter((_, i) => i !== index));
+    showToast(`Removed angle ${index + 1}`);
+  };
+
   // Capture & Multi-Tier Compression (Section 11.0c & 11.5)
   const handleCapture = async () => {
+    if (capturedPhotos.length >= 3) {
+      showToast("Maximum 3 angles captured. Tap Continue to proceed.");
+      return;
+    }
+
     try {
       if (cameraActive && videoRef.current) {
         const video = videoRef.current;
@@ -128,8 +141,7 @@ export const ReportTab: React.FC = () => {
         setCompressedTiers(result);
         setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
         setCapturedPhotos((prev) => [...prev, result.full.dataUrl]);
-        setStep(2);
-        showToast(`Frame compressed to ${Math.round(result.full.sizeBytes / 1024)} KB WebP`);
+        showToast(`Angle ${capturedPhotos.length + 1} compressed to ${Math.round(result.full.sizeBytes / 1024)} KB WebP`);
         return;
       }
     } catch (e) {
@@ -137,9 +149,16 @@ export const ReportTab: React.FC = () => {
     }
 
     // High quality simulated capture fallback with client compression
+    const demoPhotos = [
+      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
+      "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=1280&h=960&fit=crop",
+      "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=1280&h=960&fit=crop",
+    ];
+    const nextPhotoUrl = demoPhotos[capturedPhotos.length % demoPhotos.length];
+
     const img = document.createElement("img");
     img.crossOrigin = "anonymous";
-    img.src = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop";
+    img.src = nextPhotoUrl;
     img.onload = async () => {
       try {
         const result = await compressImageTiers(img, img.naturalWidth || 1280, img.naturalHeight || 960, {
@@ -152,11 +171,11 @@ export const ReportTab: React.FC = () => {
       } catch {
         setCapturedPhotos((prev) => [...prev, img.src]);
       }
-      setStep(2);
+      showToast(`Angle ${capturedPhotos.length + 1} captured & verified!`);
     };
     img.onerror = () => {
-      setCapturedPhotos((prev) => [...prev, "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&h=600&fit=crop"]);
-      setStep(2);
+      setCapturedPhotos((prev) => [...prev, nextPhotoUrl]);
+      showToast(`Angle ${capturedPhotos.length + 1} captured!`);
     };
   };
 
@@ -180,31 +199,43 @@ export const ReportTab: React.FC = () => {
     }
   };
 
-  // Submit Final Issue with Cloudflare R2 Upload
+  // Submit Final Issue with Cloudflare R2 Upload for all photos
   const handleSubmitIssue = async () => {
     setIsUploadingToR2(true);
-    let finalPhotoUrl = capturedPhotos[0];
 
-    // Upload to Cloudflare R2 via Next.js Route Handler
-    try {
-      if (capturedPhotos[0]?.startsWith("data:")) {
-        const uploadRes = await fetch("/api/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageBase64: capturedPhotos[0],
-          }),
-        });
-        const uploadData = await uploadRes.json();
-        if (uploadData.url) {
-          finalPhotoUrl = uploadData.url;
+    // Upload all captured photo angles to Cloudflare R2 / S3
+    const uploadedPhotos = await Promise.all(
+      capturedPhotos.map(async (photoData, idx) => {
+        let finalUrl = photoData;
+        if (photoData.startsWith("data:")) {
+          try {
+            const uploadRes = await fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imageBase64: photoData,
+              }),
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.url) {
+              finalUrl = uploadData.url;
+            }
+          } catch (err) {
+            console.warn("R2 upload fallback for photo angle:", idx, err);
+          }
         }
-      }
-    } catch (err) {
-      console.warn("R2 upload fallback notice:", err);
-    } finally {
-      setIsUploadingToR2(false);
-    }
+        return {
+          id: `photo-${Date.now()}-${idx}`,
+          kind: "report" as const,
+          url: finalUrl,
+          capturedAt: new Date().toISOString(),
+          lat: activeUC.lat,
+          lng: activeUC.lng,
+        };
+      })
+    );
+
+    setIsUploadingToR2(false);
 
     const categoryObj = CIVIC_CATEGORIES.find((c) => c.id === selectedCategory);
     const categoryName = categoryObj?.name.en || "Civic Issue";
@@ -228,11 +259,11 @@ export const ReportTab: React.FC = () => {
       reporterId: isAnonymous ? "user-anon" : "user-101",
       status: "open",
       eligible: categoryObj?.scoredInMVP || false,
-      photos: [
+      photos: uploadedPhotos.length > 0 ? uploadedPhotos : [
         {
-          id: `photo-${Date.now()}`,
+          id: `photo-${Date.now()}-0`,
           kind: "report",
-          url: finalPhotoUrl,
+          url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
           capturedAt: new Date().toISOString(),
           lat: activeUC.lat,
           lng: activeUC.lng,
@@ -313,44 +344,99 @@ export const ReportTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Shutter Controls */}
-          <div className="relative z-20 p-6 bg-linear-to-t from-black/90 to-transparent flex items-center justify-around">
-            <div className="w-12 h-12 flex items-center justify-center">
-              {capturedPhotos.length > 0 && (
-                <div className="relative w-11 h-11 rounded-lg overflow-hidden border-2 border-white">
-                  <Image
-                    src={capturedPhotos[capturedPhotos.length - 1]}
-                    alt="Latest thumbnail"
-                    fill
-                    sizes="44px"
-                    className="object-cover"
-                  />
-                  <span className="absolute top-0 right-0 bg-teal-600 text-white text-[9px] font-bold px-1 rounded-bl">
-                    {capturedPhotos.length}
-                  </span>
-                </div>
-              )}
+          {/* Bottom Multi-Photo Angle Tray & Shutter Controls */}
+          <div className="relative z-20 p-3 sm:p-4 bg-linear-to-t from-black/95 via-black/85 to-transparent space-y-2.5">
+            {/* 3 Angle Preview Slots */}
+            <div className="grid grid-cols-3 gap-2">
+              {[0, 1, 2].map((slotIdx) => {
+                const photo = capturedPhotos[slotIdx];
+                const labels = ["1. Wide Angle", "2. Hazard Close-up", "3. Context/Street"];
+                return (
+                  <div
+                    key={slotIdx}
+                    className={`relative h-14 rounded-xl overflow-hidden border flex flex-col items-center justify-center p-1 text-center transition ${
+                      photo
+                        ? "border-teal-400 bg-black/70 shadow-sm"
+                        : "border-dashed border-white/30 bg-white/5"
+                    }`}
+                  >
+                    {photo ? (
+                      <>
+                        <Image
+                          src={photo}
+                          alt={labels[slotIdx]}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeCapturedPhoto(slotIdx)}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-black/80 text-white hover:bg-rose-600 transition cursor-pointer z-10"
+                          title="Remove photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-0 inset-x-0 bg-black/80 text-emerald-400 text-[8px] font-bold py-0.5 truncate px-1">
+                          ✓ {labels[slotIdx]}
+                        </span>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center text-white/50 space-y-0.5">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span className="text-[8px] font-semibold">{labels[slotIdx]}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Shutter Button */}
-            <button
-              onClick={handleCapture}
-              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-teal-600 hover:bg-teal-700 active:scale-95 transition cursor-pointer shadow-2xl"
-              aria-label="Capture Photo"
-            >
-              <div className="w-14 h-14 rounded-full bg-white" />
-            </button>
+            {/* Shutter and Continue Bar */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setCameraActive(!cameraActive);
+                  showToast("Flipped camera sensor");
+                }}
+                className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer"
+                title="Flip camera"
+              >
+                <RotateCw className="w-5 h-5" />
+              </button>
 
-            <button
-              onClick={() => {
-                setCameraActive(!cameraActive);
-                showToast("Flipped camera sensor");
-              }}
-              className="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer"
-              title="Flip camera"
-            >
-              <RotateCw className="w-5 h-5" />
-            </button>
+              {/* Shutter Button (Capture angle) */}
+              <button
+                type="button"
+                disabled={capturedPhotos.length >= 3}
+                onClick={handleCapture}
+                className={`w-16 h-16 rounded-full border-4 border-white flex items-center justify-center transition cursor-pointer shadow-2xl ${
+                  capturedPhotos.length >= 3
+                    ? "bg-slate-600 opacity-50 cursor-not-allowed"
+                    : "bg-teal-600 hover:bg-teal-700 active:scale-95"
+                }`}
+                aria-label="Capture Photo"
+              >
+                <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center text-teal-800 text-[10px] font-bold">
+                  {capturedPhotos.length < 3 ? `+Angle ${capturedPhotos.length + 1}` : "✓ 3/3"}
+                </div>
+              </button>
+
+              {/* Proceed to Category Button */}
+              {capturedPhotos.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-3.5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Continue</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <div className="w-10" />
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -479,18 +565,32 @@ export const ReportTab: React.FC = () => {
 
           {/* Photo & Location Banner */}
           <div className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
-                <Image
-                  src={capturedPhotos[0] || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&h=300&fit=crop"}
-                  alt="Captured evidence"
-                  fill
-                  sizes="80px"
-                  className="object-cover"
-                />
+            {/* Multi-Photo Angle Preview Strip */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span>Evidence Angles ({capturedPhotos.length} Captured)</span>
+                <span className="text-[10px] text-teal-600 font-mono">✓ EXIF Stripped · GPS Watermarked</span>
               </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {capturedPhotos.map((photo, pIdx) => (
+                  <div key={pIdx} className="relative w-24 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
+                    <Image
+                      src={photo}
+                      alt={`Angle ${pIdx + 1}`}
+                      fill
+                      sizes="96px"
+                      className="object-cover"
+                    />
+                    <span className="absolute bottom-0 inset-x-0 bg-black/80 text-teal-300 text-[9px] font-bold text-center py-0.5">
+                      Angle {pIdx + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              <div className="space-y-1">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-0.5">
                 <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                   {CIVIC_CATEGORIES.find((c) => c.id === selectedCategory)?.name.en}
                 </span>
@@ -498,15 +598,16 @@ export const ReportTab: React.FC = () => {
                   <MapPin className="w-3.5 h-3.5 text-teal-600" />
                   <span>{activeUC.name}</span>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                    ✓ WebP 1280px · {compressedSizeKb} KB (&lt;200KB)
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-mono">
-                    <UploadCloud className="w-3 h-3 text-teal-600" />
-                    <span>R2: civickarachi</span>
-                  </span>
-                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                  ✓ {compressedSizeKb} KB WebP (&lt;200KB)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                  <UploadCloud className="w-3 h-3 text-teal-600" />
+                  <span>R2: civickarachi</span>
+                </span>
               </div>
             </div>
 

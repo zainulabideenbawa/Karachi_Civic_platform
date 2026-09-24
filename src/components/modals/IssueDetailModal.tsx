@@ -193,6 +193,26 @@ export const IssueDetailModal: React.FC = () => {
             )}
           </div>
 
+          {/* Multi-Photo Angle Switcher */}
+          {selectedIssue.photos.length > 1 && !showSlider && (
+            <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
+              {selectedIssue.photos.map((photo, pIdx) => (
+                <button
+                  key={photo.id || pIdx}
+                  onClick={() => setActivePhotoIndex(pIdx)}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    activePhotoIndex === pIdx
+                      ? "bg-teal-700 text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <span>Angle {pIdx + 1}</span>
+                  {activePhotoIndex === pIdx && <span className="w-1.5 h-1.5 rounded-full bg-teal-300" />}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* 2. Title, Location & Status */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 flex-wrap">
