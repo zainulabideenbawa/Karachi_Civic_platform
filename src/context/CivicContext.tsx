@@ -14,6 +14,9 @@ import {
   UC,
   UCIdea,
   UserRole,
+  ManagedUser,
+  OfficialVerificationClaim,
+  JurisdictionDispute,
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
@@ -25,6 +28,9 @@ import {
   MOCK_PROMISES,
   MOCK_TOWNS,
   MOCK_UCS,
+  MOCK_MANAGED_USERS,
+  MOCK_OFFICIAL_CLAIMS,
+  MOCK_JURISDICTION_DISPUTES,
 } from "@/lib/mock-data";
 import {
   supabase,
@@ -106,6 +112,31 @@ interface CivicContextType {
   workDoneShareIssue: Issue | null;
   setWorkDoneShareIssue: (issue: Issue | null) => void;
   openWorkDoneShare: (issue: Issue) => void;
+
+  // NGO Workbench
+  isNGODashboardOpen: boolean;
+  setIsNGODashboardOpen: (open: boolean) => void;
+  adoptNGOIssue: (issueId: string, ngoName: string, targetDays: number, reliefNote: string) => { success: boolean; message: string };
+  resolveNGOIssue: (issueId: string, afterPhotoUrl: string, note: string) => { success: boolean; message: string };
+
+  // Admin & User Moderation
+  managedUsers: ManagedUser[];
+  banUser: (userId: string, reason: string) => void;
+  unbanUser: (userId: string) => void;
+  shadowbanUser: (userId: string) => void;
+
+  // Official Verifications
+  officialVerificationClaims: OfficialVerificationClaim[];
+  approveOfficialClaim: (claimId: string) => void;
+  rejectOfficialClaim: (claimId: string) => void;
+
+  // Community Leader Applications
+  approveLeaderApplicant: (leaderId: string) => void;
+  rejectLeaderApplicant: (leaderId: string) => void;
+
+  // Jurisdiction Disputes
+  jurisdictionDisputes: JurisdictionDispute[];
+  resolveJurisdictionDispute: (disputeId: string, decision: "transfer" | "keep") => void;
   
   // Actions
   toggleAffected: (issueId: string) => void;
@@ -183,9 +214,158 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isFindMyUCOpen, setIsFindMyUCOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [workDoneShareIssue, setWorkDoneShareIssue] = useState<Issue | null>(null);
+  const [isNGODashboardOpen, setIsNGODashboardOpen] = useState(false);
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>(MOCK_MANAGED_USERS);
+  const [officialVerificationClaims, setOfficialVerificationClaims] = useState<OfficialVerificationClaim[]>(MOCK_OFFICIAL_CLAIMS);
+  const [jurisdictionDisputes, setJurisdictionDisputes] = useState<JurisdictionDispute[]>(MOCK_JURISDICTION_DISPUTES);
 
   const openWorkDoneShare = (issue: Issue) => {
     setWorkDoneShareIssue(issue);
+  };
+
+  const banUser = (userId: string, reason: string) => {
+    setManagedUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? { ...u, status: "banned" as const, banReason: reason || "Administrative platform ban" }
+          : u
+      )
+    );
+    const newLog: AuditLogEntry = {
+      id: `log-ban-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `User Suspended / Banned: ${userId}`,
+      affectedUcOrOfficial: `Target User: ${userId}`,
+      reason: reason || "Violated civic integrity guidelines",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`User ${userId} banned from platform`);
+  };
+
+  const unbanUser = (userId: string) => {
+    setManagedUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, status: "active" as const, banReason: undefined, isFlaggedForBrigading: false } : u
+      )
+    );
+    showToast(`User ${userId} restored to Active status`);
+  };
+
+  const shadowbanUser = (userId: string) => {
+    setManagedUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? { ...u, status: "shadowbanned" as const, banReason: "Silent moderation: vote weight zeroed out" }
+          : u
+      )
+    );
+    showToast(`User ${userId} shadowbanned (Vote weight reduced to 0.0)`);
+  };
+
+  const approveOfficialClaim = (claimId: string) => {
+    const claim = officialVerificationClaims.find((c) => c.id === claimId);
+    if (!claim) return;
+
+    setOfficialVerificationClaims((prev) =>
+      prev.map((c) => (c.id === claimId ? { ...c, status: "approved" as const } : c))
+    );
+
+    setAllUCs((prev) =>
+      prev.map((uc) => {
+        if (uc.id === claim.ucId || uc.chairman.id === claim.officialId) {
+          return {
+            ...uc,
+            chairman: {
+              ...uc.chairman,
+              isClaimed: true,
+              badges: Array.from(new Set([...uc.chairman.badges, "Verified Official ECP"])),
+            },
+          };
+        }
+        return uc;
+      })
+    );
+
+    const newLog: AuditLogEntry = {
+      id: `log-claim-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `Official Seat Claim Approved: ${claim.officialName}`,
+      affectedUcOrOfficial: `${claim.seatTitle} (${claim.ucName})`,
+      reason: `Verified Government Notification: ${claim.appointmentGazetteNotice}`,
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`Verified official badge granted to ${claim.officialName}!`);
+  };
+
+  const rejectOfficialClaim = (claimId: string) => {
+    setOfficialVerificationClaims((prev) =>
+      prev.map((c) => (c.id === claimId ? { ...c, status: "rejected" as const } : c))
+    );
+    showToast("Official claim rejected");
+  };
+
+  const approveLeaderApplicant = (leaderId: string) => {
+    setCommunityLeaders((prev) =>
+      prev.map((lead) =>
+        lead.id === leaderId
+          ? { ...lead, status: "active" as const, identityVerified: true, identityVerifiedAt: new Date().toISOString() }
+          : lead
+      )
+    );
+    showToast("Community Leader application approved & verified!");
+  };
+
+  const rejectLeaderApplicant = (leaderId: string) => {
+    setCommunityLeaders((prev) =>
+      prev.map((lead) => (lead.id === leaderId ? { ...lead, status: "removed" as const } : lead))
+    );
+    showToast("Community Leader application rejected.");
+  };
+
+  const resolveJurisdictionDispute = (disputeId: string, decision: "transfer" | "keep") => {
+    const disp = jurisdictionDisputes.find((d) => d.id === disputeId);
+    if (!disp) return;
+
+    setJurisdictionDisputes((prev) =>
+      prev.map((d) =>
+        d.id === disputeId ? { ...d, status: decision === "transfer" ? ("approved" as const) : ("rejected" as const) } : d
+      )
+    );
+
+    if (decision === "transfer") {
+      setIssues((prev) =>
+        prev.map((iss) => {
+          if (iss.id === disp.issueId) {
+            return {
+              ...iss,
+              subCategory: `Reassigned to ${disp.claimedTargetBody}`,
+              officialResponse: {
+                officialId: "admin-system",
+                officialName: "Admin Arbitration Board",
+                seatTitle: "Admin Panel",
+                respondedAt: new Date().toISOString(),
+                message: `Jurisdiction transfer approved by Admin Panel. Transferred to ${disp.claimedTargetBody}. Shifted out of UC scoring backlog.`,
+                statusUpdate: "in_progress",
+              },
+            };
+          }
+          return iss;
+        })
+      );
+      showToast(`Dispute resolved: Issue transferred to ${disp.claimedTargetBody}`);
+    } else {
+      showToast("Dispute resolved: Issue kept within UC municipal jurisdiction");
+    }
+  };
+
+  const adoptNGOIssue = (issueId: string, ngoName: string, targetDays: number, reliefNote: string) => {
+    return adoptIssue(issueId, "ngo", "ngo-active", ngoName, targetDays);
+  };
+
+  const resolveNGOIssue = (issueId: string, afterPhotoUrl: string, note: string) => {
+    return resolveAdoptedIssue(issueId, afterPhotoUrl, note);
   };
 
   // Sync with Supabase on mount (Hydrate all civic seed & live data from Postgres)
@@ -1391,6 +1571,21 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         selectedOfficial,
         setSelectedOfficial,
         isOnline,
+        isNGODashboardOpen,
+        setIsNGODashboardOpen,
+        managedUsers,
+        banUser,
+        unbanUser,
+        shadowbanUser,
+        officialVerificationClaims,
+        approveOfficialClaim,
+        rejectOfficialClaim,
+        approveLeaderApplicant,
+        rejectLeaderApplicant,
+        jurisdictionDisputes,
+        resolveJurisdictionDispute,
+        adoptNGOIssue,
+        resolveNGOIssue,
       }}
     >
       {children}

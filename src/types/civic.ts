@@ -342,3 +342,44 @@ export interface UCIdea {
   isInThinkTankPool?: boolean;
 }
 
+export interface ManagedUser {
+  id: string;
+  name: string;
+  phoneMasked: string;
+  ucName: string;
+  reputationScore: number;
+  reportsCount: number;
+  status: "active" | "banned" | "shadowbanned";
+  banReason?: string;
+  joinedAt: string;
+  isFlaggedForBrigading?: boolean;
+}
+
+export interface OfficialVerificationClaim {
+  id: string;
+  officialId: string;
+  officialName: string;
+  seatTitle: string;
+  ucId: string;
+  ucName: string;
+  cnicMasked: string;
+  phoneMasked: string;
+  documentUrl: string;
+  appointmentGazetteNotice?: string;
+  submittedAt: string;
+  status: "pending" | "approved" | "rejected";
+}
+
+export interface JurisdictionDispute {
+  id: string;
+  issueId: string;
+  issueTitle: string;
+  currentUcId: string;
+  currentUcName: string;
+  flaggedByOfficialName: string;
+  claimedTargetBody: string; // e.g. "KWSC (Water & Sewerage)", "SSWMB"
+  reason: string;
+  flaggedAt: string;
+  status: "pending" | "approved" | "rejected";
+}
+

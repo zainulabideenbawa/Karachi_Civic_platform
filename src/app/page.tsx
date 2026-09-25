@@ -31,6 +31,7 @@ import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
 import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
 import { RoleBanner } from "@/components/RoleBanner";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
+import { NGODashboardModal } from "@/components/dashboards/NGODashboardModal";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -87,6 +88,7 @@ function CivicAppContent() {
         onClose={() => setIsRoleSwitcherOpen(false)}
       />
       <WorkDoneShareModal />
+      <NGODashboardModal />
     </div>
   );
 }

@@ -21,6 +21,10 @@ import {
   Globe,
   Bell,
   Share2,
+  HeartHandshake,
+  Ban,
+  AlertTriangle,
+  Scale,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -37,6 +41,11 @@ export const MeTab: React.FC = () => {
     setIsOfficialDashboardOpen,
     setIsAdminConsoleOpen,
     setIsNGOsModalOpen,
+    isNGODashboardOpen,
+    setIsNGODashboardOpen,
+    managedUsers,
+    officialVerificationClaims,
+    jurisdictionDisputes,
     openWorkDoneShare,
     showToast,
     language,
@@ -66,8 +75,28 @@ export const MeTab: React.FC = () => {
               <p className="text-xs text-slate-400 font-mono">
                 +92 300 ••••582
               </p>
-              <div className="inline-block mt-1 text-[10px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
-                Verified Resident of {activeUC.name}
+              <div className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded border">
+                {activeRole === "admin" ? (
+                  <span className="text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800">
+                    City Oversight SuperAdmin • 246 UCs
+                  </span>
+                ) : activeRole === "ngo" ? (
+                  <span className="text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800">
+                    Verified NGO Relief Partner • Disaster Fleet
+                  </span>
+                ) : activeRole === "official" ? (
+                  <span className="text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+                    UC Chairman • {activeUC.chairman.seatTitle} ({activeUC.name})
+                  </span>
+                ) : activeRole === "community_leader" ? (
+                  <span className="text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 border-indigo-200 dark:border-indigo-800">
+                    Certified Community Leader • Ward Captain
+                  </span>
+                ) : (
+                  <span className="text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950 border-teal-200 dark:border-teal-800">
+                    Verified Resident of {activeUC.name}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -80,17 +109,45 @@ export const MeTab: React.FC = () => {
           </button>
         </div>
 
-        {/* Resident Verification Goal Progress Bar (Section 4) */}
+        {/* Resident / Role Verification Goal Progress Bar */}
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
               <UserCheck className="w-3.5 h-3.5 text-teal-600" />
-              <span>Resident Voting Weight Status</span>
+              <span>
+                {activeRole === "admin"
+                  ? "Platform Governance Authority"
+                  : activeRole === "ngo"
+                  ? "Humanitarian Relief Status"
+                  : activeRole === "official"
+                  ? "Official ECP Verification"
+                  : activeRole === "community_leader"
+                  ? "Community Leader Contender Status"
+                  : "Resident Voting Weight Status"}
+              </span>
             </span>
-            <span className="font-bold text-teal-700 dark:text-teal-400">100% (Weight 1.0)</span>
+            <span className="font-bold text-teal-700 dark:text-teal-400">
+              {activeRole === "admin"
+                ? "Root Privilege"
+                : activeRole === "ngo"
+                ? "Field Ready"
+                : activeRole === "official"
+                ? "ECP Gazette Verified"
+                : activeRole === "community_leader"
+                ? "Leader Verified"
+                : "100% (Weight 1.0)"}
+            </span>
           </div>
           <p className="text-[11px] text-slate-400">
-            You completed 3 location-verified civic actions in {activeUC.name}. Your confirmations hold full mathematical weight.
+            {activeRole === "admin"
+              ? "SuperAdmin oversight enabled across all 246 Union Councils with full moderation and ECP audit powers."
+              : activeRole === "ngo"
+              ? "Emergency response deployment enabled. 40 Water bowsers and 25 dewatering pumps synced."
+              : activeRole === "official"
+              ? `Elected municipal chairman authority active for ${activeUC.name}. Official resolutions verified.`
+              : activeRole === "community_leader"
+              ? "Ward leader track active. You can adopt unresolved issues (≥7d) and build public voter trust."
+              : `You completed 3 location-verified civic actions in ${activeUC.name}. Your confirmations hold full mathematical weight.`}
           </p>
         </div>
       </section>
@@ -128,8 +185,147 @@ export const MeTab: React.FC = () => {
         </div>
       </section>
 
-      {/* UC Chairman Command Desk (When activeRole is official/chairman) */}
-      {activeRole === "official" ? (
+      {/* Role-Specific Command Centers */}
+      {activeRole === "admin" ? (
+        <section className="bg-gradient-to-r from-purple-950 via-slate-900 to-purple-900 rounded-2xl p-4 text-white shadow-md border border-purple-800/60 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300 uppercase tracking-wider">
+                <Shield className="w-4 h-4 text-purple-400" />
+                <span>SuperAdmin &amp; Platform Integrity Terminal</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Citywide Governance, Moderation &amp; ECP Verification
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-sm">
+                Root oversight over all 246 Union Councils. Moderate abusive users, audit brigading vote spikes, and verify elected Chairman claims against official gazettes.
+              </p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
+              SUPERADMIN
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-purple-900/40 text-center">
+            <div>
+              <div className="text-base font-extrabold text-rose-400">
+                {managedUsers.filter((u) => u.isFlaggedForBrigading).length}
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Brigading Alerts</div>
+            </div>
+            <div>
+              <div className="text-base font-extrabold text-amber-400">
+                {officialVerificationClaims.filter((c) => c.status === "pending").length}
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Pending ECP Claims</div>
+            </div>
+            <div>
+              <div className="text-base font-extrabold text-teal-400">
+                {jurisdictionDisputes.filter((d) => d.status === "pending").length}
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Jurisdiction Disputes</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => setIsAdminConsoleOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <Ban className="w-3.5 h-3.5" />
+                <span>Open Moderation &amp; Banning Console</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-white" />
+            </button>
+
+            <button
+              onClick={() => setIsAdminConsoleOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-white/15"
+            >
+              <span className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Verify Chairman Appointments</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </section>
+      ) : activeRole === "ngo" ? (
+        <section className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 rounded-2xl p-4 text-white shadow-md border border-emerald-800/60 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                <HeartHandshake className="w-4 h-4 text-emerald-400" />
+                <span>NGO Humanitarian &amp; Relief Command Desk</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Disaster Response • Rapid Material Intervention
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-sm">
+                Al-Khidmat Foundation &amp; Edhi Emergency Relief units. Deploy water tankers, dewatering pumps, and cover open gutters abandoned by municipal officials.
+              </p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+              RELIEF FLEET
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-emerald-900/40 text-center">
+            <div>
+              <div className="text-base font-extrabold text-amber-400">
+                {issues.filter((i) => i.status === "open" && !i.adoptedById && (i.categoryId === "water" || i.categoryId === "sewerage" || i.affectedCount >= 10)).length}
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Abandoned (≥7d)</div>
+            </div>
+            <div>
+              <div className="text-base font-extrabold text-emerald-400">
+                {issues.filter((i) => i.adoptedByType === "ngo" && i.status !== "confirmed").length}
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Active Relief Ops</div>
+            </div>
+            <div>
+              <div className="text-base font-extrabold text-sky-400">
+                40
+              </div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase">Bowsers Ready</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => setIsNGODashboardOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <HeartHandshake className="w-3.5 h-3.5" />
+                <span>Open NGO Relief Workbench</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-white" />
+            </button>
+
+            <button
+              onClick={() => {
+                const resolved = issues.find(
+                  (i) => (i.status === "marked_resolved" || i.status === "confirmed") && i.adoptedByType === "ngo"
+                );
+                if (resolved) {
+                  openWorkDoneShare(resolved);
+                } else {
+                  setIsNGODashboardOpen(true);
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-white/15"
+            >
+              <span className="flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Share Relief Work Card</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </section>
+      ) : activeRole === "official" ? (
         <section className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-900 rounded-2xl p-4 text-white shadow-md border border-amber-800/60 space-y-3">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
@@ -235,7 +431,7 @@ export const MeTab: React.FC = () => {
           </div>
         </section>
       ) : (
-        /* Regular Citizen Track */
+        /* Regular Citizen & Verified Resident Track */
         <section className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-indigo-800/60 space-y-3">
           <div className="flex items-start justify-between">
             <div className="space-y-1">

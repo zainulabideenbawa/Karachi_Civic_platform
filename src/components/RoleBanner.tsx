@@ -25,6 +25,7 @@ export const RoleBanner: React.FC<RoleBannerProps> = ({ onOpenRoleSwitcher }) =>
     setIsOfficialDashboardOpen,
     setIsLeaderDashboardOpen,
     setIsNGOsModalOpen,
+    setIsNGODashboardOpen,
     setIsAdminConsoleOpen,
     showToast,
   } = useCivic();
@@ -149,10 +150,10 @@ export const RoleBanner: React.FC<RoleBannerProps> = ({ onOpenRoleSwitcher }) =>
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => setIsNGOsModalOpen(true)}
+                onClick={() => setIsNGODashboardOpen(true)}
                 className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1 active:scale-95"
               >
-                <span>Relief Hub</span>
+                <span>Relief Workbench</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
               <button
