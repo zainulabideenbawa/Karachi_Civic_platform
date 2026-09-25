@@ -26,6 +26,7 @@ import { LeaderDashboardModal } from "@/components/dashboards/LeaderDashboardMod
 import { UCIdeasBoardModal } from "@/components/modals/UCIdeasBoardModal";
 import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
 import { OnboardingModal } from "@/components/modals/OnboardingModal";
+import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -46,6 +47,9 @@ function CivicAppContent() {
         {activeTab === "rankings" && <RankingsTab />}
         {activeTab === "me" && <MeTab />}
       </main>
+
+      {/* Floating PWA Install Drawer */}
+      <PWAInstallDrawer />
 
       {/* Sticky Bottom Navigation Bar */}
       <BottomNav />

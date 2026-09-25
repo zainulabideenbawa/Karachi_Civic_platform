@@ -6,7 +6,6 @@ import {
   UserCheck,
   ShieldCheck,
   Clock,
-  Globe,
   Download,
   LogOut,
   MapPin,
@@ -16,6 +15,9 @@ import {
   Award,
   Sparkles,
   ChevronRight,
+  Building2,
+  Shield,
+  Check,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -23,13 +25,15 @@ export const MeTab: React.FC = () => {
     activeUC,
     issues,
     events,
-    language,
-    setLanguage,
     activeRole,
+    setActiveRole,
     offlineQueueCount,
     setIsWhatsAppAuthOpen,
     setIsBecomeLeaderOpen,
     setIsLeaderDashboardOpen,
+    setIsOfficialDashboardOpen,
+    setIsAdminConsoleOpen,
+    setIsNGOsModalOpen,
     showToast,
   } = useCivic();
 
@@ -159,48 +163,6 @@ export const MeTab: React.FC = () => {
 
       {/* 3. Settings & Preferences */}
       <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-        {/* Language Selection */}
-        <div className="p-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Globe className="w-4 h-4 text-teal-600" />
-            <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                Interface Language
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Current: {language === "en" ? "English" : language === "ur_roman" ? "Roman Urdu" : "Urdu (اردو)"}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-semibold">
-            <button
-              onClick={() => setLanguage("en")}
-              className={`px-2 py-1 rounded cursor-pointer ${
-                language === "en" ? "bg-white dark:bg-slate-700 text-teal-700 shadow-xs" : "text-slate-500"
-              }`}
-            >
-              EN
-            </button>
-            <button
-              onClick={() => setLanguage("ur_roman")}
-              className={`px-2 py-1 rounded cursor-pointer ${
-                language === "ur_roman" ? "bg-white dark:bg-slate-700 text-teal-700 shadow-xs" : "text-slate-500"
-              }`}
-            >
-              Roman
-            </button>
-            <button
-              onClick={() => setLanguage("ur")}
-              className={`px-2 py-1 rounded cursor-pointer ${
-                language === "ur" ? "bg-white dark:bg-slate-700 text-teal-700 shadow-xs" : "text-slate-500"
-              }`}
-            >
-              اردو
-            </button>
-          </div>
-        </div>
-
         {/* Home Union Council */}
         <div className="p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -275,20 +237,181 @@ export const MeTab: React.FC = () => {
             </div>
           )}
         </div>
+      </section>
 
-        {/* Testing Role Status */}
-        <div className="p-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Layers className="w-4 h-4 text-teal-600" />
+      {/* Role Switcher & Workbench Launcher (Demo & Testing Controls) */}
+      <section className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <Layers className="w-4 h-4" />
+            </div>
             <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                Active User Mode
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Viewing platform as: <span className="font-semibold capitalize">{activeRole.replace("_", " ")}</span>
-              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Stakeholder Role Switcher
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Switch perspective &amp; test dedicated workbenches
+              </p>
             </div>
           </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 capitalize">
+            {activeRole.replace("_", " ")}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          {/* 1. Citizen */}
+          <button
+            onClick={() => {
+              setActiveRole("citizen");
+              showToast("Switched to Citizen view");
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "citizen"
+                ? "border-teal-500 bg-teal-50/60 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-slate-500" />
+              <div>
+                <div className="text-xs font-bold">Citizen</div>
+                <div className="text-[10px] text-slate-400">Public viewer</div>
+              </div>
+            </div>
+            {activeRole === "citizen" && <Check className="w-4 h-4 text-teal-600" />}
+          </button>
+
+          {/* 2. Verified Resident */}
+          <button
+            onClick={() => {
+              setActiveRole("verified_resident");
+              showToast("Switched to Verified Resident (Full 1.0 Voting Weight)");
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "verified_resident"
+                ? "border-teal-500 bg-teal-50/60 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-teal-600" />
+              <div>
+                <div className="text-xs font-bold">Verified Resident</div>
+                <div className="text-[10px] text-slate-400">1.0 weight vote</div>
+              </div>
+            </div>
+            {activeRole === "verified_resident" && <Check className="w-4 h-4 text-teal-600" />}
+          </button>
+
+          {/* 3. UC Chairman */}
+          <button
+            onClick={() => {
+              setActiveRole("official");
+              setIsOfficialDashboardOpen(true);
+              showToast(`Logged into ${activeUC.chairman.seatTitle} Workbench`);
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "official"
+                ? "border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-amber-600" />
+              <div>
+                <div className="text-xs font-bold">UC Chairman</div>
+                <div className="text-[10px] text-slate-400">Official Workbench</div>
+              </div>
+            </div>
+            {activeRole === "official" ? (
+              <Check className="w-4 h-4 text-amber-600" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
+
+          {/* 4. Community Leader */}
+          <button
+            onClick={() => {
+              setActiveRole("community_leader");
+              setIsLeaderDashboardOpen(true);
+              showToast("Switched to Community Leader Workbench");
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "community_leader"
+                ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-indigo-600" />
+              <div>
+                <div className="text-xs font-bold">Community Leader</div>
+                <div className="text-[10px] text-slate-400">Pledges &amp; Adoptions</div>
+              </div>
+            </div>
+            {activeRole === "community_leader" ? (
+              <Check className="w-4 h-4 text-indigo-600" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
+
+          {/* 5. NGO Partner */}
+          <button
+            onClick={() => {
+              setActiveRole("ngo");
+              setIsNGOsModalOpen(true);
+              showToast("Switched to NGO Partner Directory");
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "ngo"
+                ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-blue-600" />
+              <div>
+                <div className="text-xs font-bold">NGO Partner</div>
+                <div className="text-[10px] text-slate-400">Adopt Open Issues</div>
+              </div>
+            </div>
+            {activeRole === "ngo" ? (
+              <Check className="w-4 h-4 text-blue-600" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
+
+          {/* 6. Admin Console */}
+          <button
+            onClick={() => {
+              setActiveRole("admin");
+              setIsAdminConsoleOpen(true);
+              showToast("Switched to Admin Console");
+            }}
+            className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+              activeRole === "admin"
+                ? "border-purple-500 bg-purple-50/60 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200"
+                : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-600" />
+              <div>
+                <div className="text-xs font-bold">Admin Console</div>
+                <div className="text-[10px] text-slate-400">Audit &amp; Moderation</div>
+              </div>
+            </div>
+            {activeRole === "admin" ? (
+              <Check className="w-4 h-4 text-purple-600" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
         </div>
       </section>
 
