@@ -27,6 +27,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Native app touch responsiveness */
+button, a, input, select, textarea {
+  touch-action: manipulation;
 }
 
 /* RTL Urdu Typography (Section 11.0b, 11.4) */
@@ -49,7 +55,10 @@ body {
   scrollbar-width: none;
 }
 
-/* Safe area inset for mobile iPhone / Android gesture bars */
+/* Safe area insets for mobile iPhone notch / home indicator and Android gesture bars */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 1rem);
 }

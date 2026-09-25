@@ -326,14 +326,14 @@ export const MapTab: React.FC = () => {
   };
 
   return (
-    <div className="relative h-[calc(100vh-8.5rem)] w-full flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-md">
+    <div className="relative h-[calc(100dvh-7.6rem)] sm:h-[calc(100vh-8.5rem)] w-full flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-md">
       {/* Top Floating Sleek Control Bar */}
       <div className="absolute top-3 inset-x-3 z-[1000] flex flex-col gap-2 pointer-events-none">
         {/* Compact Glassmorphic Search & Category Ribbon */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pointer-events-auto">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pointer-events-auto pr-14">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-sm cursor-pointer transition ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-xs cursor-pointer transition shrink-0 ${
               selectedCategory === "all"
                 ? "bg-teal-700 text-white shadow-teal-700/20"
                 : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 backdrop-blur-md hover:bg-slate-50"
@@ -345,7 +345,7 @@ export const MapTab: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm cursor-pointer transition ${
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-xs cursor-pointer transition shrink-0 ${
                 selectedCategory === cat.id
                   ? "bg-teal-700 text-white font-bold shadow-teal-700/20"
                   : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 backdrop-blur-md hover:bg-slate-50"
@@ -356,57 +356,56 @@ export const MapTab: React.FC = () => {
           ))}
         </div>
 
-        {/* Minimal Sub-Filter Row */}
-        <div className="flex items-center justify-between gap-2 pointer-events-auto">
-          <div className="flex items-center gap-1.5">
-            {/* Status Quick Pill Dropdown */}
-            <div className="flex items-center gap-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-semibold shadow-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
-              <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-hidden py-0.5"
-              >
-                <option value="all">All Statuses</option>
-                <option value="open">Open Issues</option>
-                <option value="in_progress">In Progress</option>
-                <option value="marked_resolved">Waiting Confirmation</option>
-                <option value="confirmed">Confirmed Fixed</option>
-              </select>
-            </div>
-
-            {/* Monsoon Floods Emergency Mode */}
-            <button
-              onClick={() => setMonsoonMode(!monsoonMode)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer border ${
-                monsoonMode
-                  ? "bg-sky-600 text-white border-sky-500 shadow-sky-600/30 animate-pulse"
-                  : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <CloudRain className="w-3.5 h-3.5 text-sky-500" />
-              <span>Monsoon Hazard</span>
-              {monsoonMode && <span className="text-[9px] bg-sky-800 text-white px-1 rounded">ON</span>}
-            </button>
-          </div>
-
-          {/* Issue Counter Badge */}
-          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 shadow-sm flex items-center gap-1.5">
+        {/* Minimal Sub-Filter Row - Guaranteed Zero Overlap with Floating Action Dock */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pointer-events-auto pr-16 py-0.5">
+          {/* Issue Counter Badge (Left-Aligned, never obscured by GPS button) */}
+          <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-200/90 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 shadow-xs flex items-center gap-1.5 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{filteredIssues.length} live pins</span>
+            <span>{filteredIssues.length} Live Pins</span>
           </div>
+
+          {/* Status Quick Pill Dropdown */}
+          <div className="flex items-center gap-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 shrink-0">
+            <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-hidden py-0.5"
+            >
+              <option value="all">All Statuses</option>
+              <option value="open">Open Issues</option>
+              <option value="in_progress">In Progress</option>
+              <option value="marked_resolved">Waiting Confirmation</option>
+              <option value="confirmed">Confirmed Fixed</option>
+            </select>
+          </div>
+
+          {/* Monsoon Floods Emergency Mode */}
+          <button
+            onClick={() => setMonsoonMode(!monsoonMode)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer border shrink-0 ${
+              monsoonMode
+                ? "bg-sky-600 text-white border-sky-500 shadow-sky-600/30 animate-pulse"
+                : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <CloudRain className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+            <span>Monsoon Hazard</span>
+            {monsoonMode && <span className="text-[9px] bg-sky-800 text-white px-1 rounded">ON</span>}
+          </button>
         </div>
       </div>
 
-      {/* Floating Action Dock (Right Side - Google/Apple Maps Style) */}
-      <div className="absolute right-3 top-24 z-[1000] flex flex-col gap-2">
-        {/* Recenter on My UC */}
+      {/* Floating Action Dock (Right Side - Apple & Google Maps Native Style) */}
+      <div className="absolute right-3 top-28 sm:top-24 z-[1000] flex flex-col gap-2">
+        {/* Recenter on My UC (High-Contrast Native GPS Crosshair) */}
         <button
           onClick={handleCenterOnMyUC}
-          className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-teal-50 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer transition active:scale-95 group relative"
+          className="w-10 h-10 rounded-2xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-md text-teal-700 dark:text-teal-400 border border-slate-200 dark:border-slate-700 shadow-lg hover:bg-teal-50 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer transition active:scale-90 group relative"
           title={`Recenter on ${activeUC.name}`}
+          aria-label="Recenter on My UC"
         >
-          <Crosshair className="w-5 h-5" />
+          <Crosshair className="w-5 h-5 text-teal-700 dark:text-teal-400 stroke-[2.2]" />
           <span className="absolute right-12 whitespace-nowrap bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-md">
             My UC: {activeUC.name.split(" ")[0]}
           </span>
@@ -415,14 +414,15 @@ export const MapTab: React.FC = () => {
         {/* UC Boundaries Toggle */}
         <button
           onClick={() => setShowBoundaries(!showBoundaries)}
-          className={`w-10 h-10 rounded-xl border shadow-md flex items-center justify-center cursor-pointer transition active:scale-95 group relative ${
+          className={`w-10 h-10 rounded-2xl border shadow-lg flex items-center justify-center cursor-pointer transition active:scale-90 group relative backdrop-blur-md ${
             showBoundaries
               ? "bg-teal-700 text-white border-teal-600 shadow-teal-700/20"
-              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+              : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
           }`}
           title="Toggle UC Ward Boundaries"
+          aria-label="Toggle UC Zones"
         >
-          <Compass className="w-5 h-5" />
+          <Compass className="w-5 h-5 stroke-[2]" />
           <span className="absolute right-12 whitespace-nowrap bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-md">
             {showBoundaries ? "Hide UC Zones" : "Show UC Zones"}
           </span>
