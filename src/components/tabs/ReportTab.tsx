@@ -30,6 +30,8 @@ import {
   UploadCloud,
   ArrowRight,
   Plus,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import { compressImageTiers, CompressionResult } from "@/lib/image-compression";
@@ -81,8 +83,11 @@ export const ReportTab: React.FC = () => {
   const [createdIssueId, setCreatedIssueId] = useState<string>("");
   const [isUploadingToR2, setIsUploadingToR2] = useState<boolean>(false);
 
-  // Camera video/stream refs
+  // Camera video/stream & native device upload refs
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
@@ -98,7 +103,7 @@ export const ReportTab: React.FC = () => {
       !navigator.mediaDevices ||
       !navigator.mediaDevices.getUserMedia
     ) {
-      setCameraError("Camera is not supported on this browser");
+      setCameraError("In-browser live stream not supported. Use 'Open Camera' or 'Upload Photos'.");
       setIsStartingCamera(false);
       return;
     }
@@ -132,7 +137,7 @@ export const ReportTab: React.FC = () => {
     } catch (err: unknown) {
       console.warn("Camera request error:", err);
       setCameraActive(false);
-      setCameraError("Camera permission needed. Tap 'Allow Camera' to start.");
+      setCameraError("Camera permission blocked. Tap 'Open Camera' to use your device camera directly.");
     } finally {
       setIsStartingCamera(false);
     }
@@ -155,6 +160,79 @@ export const ReportTab: React.FC = () => {
   const removeCapturedPhoto = (index: number) => {
     setCapturedPhotos((prev) => prev.filter((_, i) => i !== index));
     showToast(`Removed angle ${index + 1}`);
+  };
+
+  // Direct Mobile / OS Native Camera Trigger
+  const triggerCamera = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+    }
+  };
+
+  // Direct Photo Gallery / Files Trigger
+  const triggerGallery = () => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.click();
+    }
+  };
+
+  // Process photos selected via Native Camera or Photo Gallery
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 3 - capturedPhotos.length;
+    if (remainingSlots <= 0) {
+      showToast("Maximum 3 angles captured. Tap Continue to proceed.");
+      return;
+    }
+
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+
+        const result = await compressImageTiers(
+          img,
+          img.naturalWidth || 1280,
+          img.naturalHeight || 960,
+          { lat: activeUC.lat, lng: activeUC.lng }
+        );
+
+        setCompressedTiers(result);
+        setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
+        setCapturedPhotos((prev) => [...prev, result.full.dataUrl]);
+        showToast(`Angle ${capturedPhotos.length + i + 1} captured & compressed (${Math.round(result.full.sizeBytes / 1024)} KB)`);
+      } catch (err) {
+        console.warn("Compression fallback:", err);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setCapturedPhotos((prev) => [...prev, reader.result as string]);
+            showToast(`Angle ${capturedPhotos.length + i + 1} added!`);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Reset so same file can be re-selected if needed
+    e.target.value = "";
   };
 
   // Capture & Multi-Tier Compression (Section 11.0c & 11.5)
@@ -180,38 +258,11 @@ export const ReportTab: React.FC = () => {
         return;
       }
     } catch (e) {
-      console.warn("Canvas compression error, using simulated snapshot:", e);
+      console.warn("Canvas compression error, using camera input:", e);
     }
 
-    // High quality simulated capture fallback with client compression
-    const demoPhotos = [
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
-      "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=1280&h=960&fit=crop",
-      "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=1280&h=960&fit=crop",
-    ];
-    const nextPhotoUrl = demoPhotos[capturedPhotos.length % demoPhotos.length];
-
-    const img = document.createElement("img");
-    img.crossOrigin = "anonymous";
-    img.src = nextPhotoUrl;
-    img.onload = async () => {
-      try {
-        const result = await compressImageTiers(img, img.naturalWidth || 1280, img.naturalHeight || 960, {
-          lat: activeUC.lat,
-          lng: activeUC.lng,
-        });
-        setCompressedTiers(result);
-        setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
-        setCapturedPhotos((prev) => [...prev, result.full.dataUrl]);
-      } catch {
-        setCapturedPhotos((prev) => [...prev, img.src]);
-      }
-      showToast(`Angle ${capturedPhotos.length + 1} captured & verified!`);
-    };
-    img.onerror = () => {
-      setCapturedPhotos((prev) => [...prev, nextPhotoUrl]);
-      showToast(`Angle ${capturedPhotos.length + 1} captured!`);
-    };
+    // If live video is not active, trigger native device camera immediately
+    triggerCamera();
   };
 
   // Select Category & Duplicate Check
@@ -363,25 +414,65 @@ export const ReportTab: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 w-full max-w-xs">
+                {/* Hidden Native Device Inputs */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+
+                <div className="flex flex-col gap-2.5 pt-2 w-full max-w-xs">
+                  {/* Primary 1: Open Native Device Camera */}
                   <button
                     type="button"
-                    onClick={startCamera}
-                    disabled={isStartingCamera}
-                    className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                    onClick={triggerCamera}
+                    className="w-full py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
                   >
-                    <Camera className="w-4 h-4" />
-                    <span>{isStartingCamera ? "Starting Camera..." : "Turn On Camera"}</span>
+                    <Camera className="w-4 h-4 text-teal-100" />
+                    <span>Open Camera</span>
                   </button>
 
+                  {/* Primary 2: Upload From Gallery / Files */}
                   <button
                     type="button"
-                    onClick={handleCapture}
-                    disabled={capturedPhotos.length >= 3}
-                    className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-teal-200 border border-teal-500/30 font-semibold text-xs transition cursor-pointer"
+                    onClick={triggerGallery}
+                    className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 shadow-md transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
                   >
-                    + Add Sample Angle
+                    <Upload className="w-4 h-4 text-teal-400" />
+                    <span>Upload from Gallery / Files</span>
                   </button>
+
+                  {/* Secondary options */}
+                  <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      disabled={isStartingCamera}
+                      className="text-slate-400 hover:text-white underline cursor-pointer"
+                    >
+                      {isStartingCamera ? "Starting Stream..." : "Try Live In-Browser"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCapture}
+                      disabled={capturedPhotos.length >= 3}
+                      className="text-teal-400 hover:text-teal-300 font-semibold cursor-pointer"
+                    >
+                      + Add Sample Angle
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -447,21 +538,19 @@ export const ReportTab: React.FC = () => {
               })}
             </div>
 
-            {/* Shutter and Continue Bar */}
+            {/* Shutter, Gallery, and Continue Bar */}
             <div className="flex items-center justify-between gap-3 pt-1">
+              {/* Quick Gallery Upload Button */}
               <button
                 type="button"
-                onClick={() => {
-                  setCameraActive(!cameraActive);
-                  showToast("Flipped camera sensor");
-                }}
-                className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer"
-                title="Flip camera"
+                onClick={triggerGallery}
+                className="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer transition active:scale-95 flex items-center justify-center"
+                title="Upload photo from gallery"
               >
-                <RotateCw className="w-5 h-5" />
+                <Upload className="w-5 h-5 text-teal-300" />
               </button>
 
-              {/* Shutter Button (Capture angle) */}
+              {/* Shutter Button (Capture angle or trigger native camera) */}
               <button
                 type="button"
                 disabled={capturedPhotos.length >= 3}
@@ -483,13 +572,20 @@ export const ReportTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-3.5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-1.5 active:scale-95"
                 >
                   <span>Continue</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
-                <div className="w-10" />
+                <button
+                  type="button"
+                  onClick={triggerCamera}
+                  className="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer transition active:scale-95"
+                  title="Open device camera"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
               )}
             </div>
           </div>
