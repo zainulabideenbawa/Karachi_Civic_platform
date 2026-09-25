@@ -42,6 +42,7 @@ import {
   Droplets,
   Flame,
   FolderPlus,
+  UserCheck,
 } from "lucide-react";
 
 export const ReportTab: React.FC = () => {
@@ -68,6 +69,7 @@ export const ReportTab: React.FC = () => {
   const [severity, setSeverity] = useState<"normal" | "dangerous">("normal");
   const [description, setDescription] = useState<string>("");
   const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
+  const [reporterNameInput, setReporterNameInput] = useState<string>("Zain Bawa");
   const [gpsAccuracy] = useState<number>(12); // ±12m
   const [matchingDuplicate, setMatchingDuplicate] = useState<Issue | null>(null);
   const [createdIssueId, setCreatedIssueId] = useState<string>("");
@@ -357,7 +359,7 @@ export const ReportTab: React.FC = () => {
           capturedAt: new Date().toISOString(),
           lat: activeUC.lat,
           lng: activeUC.lng,
-          uploaderName: isAnonymous ? "Anonymous Resident" : "Zain Bawa",
+          uploaderName: isAnonymous ? "Anonymous Resident" : (reporterNameInput.trim() || "Zain Bawa"),
         };
       })
     );
@@ -365,6 +367,7 @@ export const ReportTab: React.FC = () => {
     setIsUploadingToR2(false);
 
     const categoryObj = CIVIC_CATEGORIES.find((c) => c.id === selectedCategory);
+    const resolvedReporterName = isAnonymous ? "Anonymous Resident" : (reporterNameInput.trim() || "Zain Bawa");
     const newId = addNewIssue({
       ucId: activeUC.id,
       ucName: activeUC.name,
@@ -385,7 +388,7 @@ export const ReportTab: React.FC = () => {
       gpsAccuracyMeters: gpsAccuracy,
       severity,
       isAnonymous,
-      reporterName: isAnonymous ? "Anonymous Resident" : "Zain Bawa",
+      reporterName: resolvedReporterName,
       reporterId: "user-101",
       status: "open",
       eligible: true,
@@ -994,18 +997,48 @@ export const ReportTab: React.FC = () => {
               />
             </div>
 
-            {/* Post Anonymously */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
-              <span className="text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5">
-                <EyeOff className="w-3.5 h-3.5 text-slate-500" />
-                <span>Post Anonymously (Hides Name)</span>
-              </span>
-              <input
-                type="checkbox"
-                checked={isAnonymous}
-                onChange={(e) => setIsAnonymous(e.target.checked)}
-                className="w-4 h-4 text-teal-600 rounded cursor-pointer"
-              />
+            {/* Identity & Attribution Options */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-2.5 border border-slate-200/80 dark:border-slate-700/80">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-800 dark:text-slate-200 font-bold flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-teal-600" />
+                  <span>Reporter Identity &amp; Attribution</span>
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-500">
+                  <input
+                    type="checkbox"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                    className="w-3.5 h-3.5 text-teal-600 rounded cursor-pointer"
+                  />
+                  <span>Post Anonymously</span>
+                </label>
+              </div>
+
+              {!isAnonymous ? (
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    Your Name (Displayed on Public Issue Feed &amp; Card)
+                  </label>
+                  <input
+                    type="text"
+                    value={reporterNameInput}
+                    onChange={(e) => setReporterNameInput(e.target.value)}
+                    placeholder="Enter your name (e.g. Zain Bawa)..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                  <p className="text-[10px] text-teal-700 dark:text-teal-400 font-medium">
+                    ✓ Verified Resident of {activeUC.name} • 1.0x mathematical voting weight credited to this issue.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-700/40 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                  <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>
+                    Your identity is shielded as <strong>&quot;Anonymous Resident&quot;</strong>. Your GPS geofence validation remains 100% active.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

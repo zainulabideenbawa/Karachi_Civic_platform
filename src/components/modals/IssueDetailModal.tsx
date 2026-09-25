@@ -30,6 +30,9 @@ import {
   Image as ImageIcon,
   Trash2,
   Sparkles,
+  UserCheck,
+  Shield,
+  MessageSquare,
 } from "lucide-react";
 
 export const IssueDetailModal: React.FC = () => {
@@ -47,6 +50,7 @@ export const IssueDetailModal: React.FC = () => {
     officialMarkResolved,
     flagJurisdiction,
     openWorkDoneShare,
+    addCommentToIssue,
   } = useCivic();
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -129,18 +133,6 @@ export const IssueDetailModal: React.FC = () => {
       url: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=800&h=600&fit=crop",
     },
   ];
-  const [comments, setComments] = useState<
-    { id: string; user: string; role: string; text: string; time: string }[]
-  >([
-    {
-      id: "c-1",
-      user: "Rashid Minhas",
-      role: "Verified Resident",
-      text: "This overflow has been persistent since Monday. Pedestrians can't reach the bank.",
-      time: "2 days ago",
-    },
-  ]);
-
   const [showSlider, setShowSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
 
@@ -157,23 +149,14 @@ export const IssueDetailModal: React.FC = () => {
   const hasAfterPhoto = selectedIssue.afterPhotos && selectedIssue.afterPhotos.length > 0;
   const beforePhoto = selectedIssue.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&h=600&fit=crop";
   const afterPhoto = selectedIssue.afterPhotos?.[0]?.url || "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop";
+  const issueComments = selectedIssue.comments || [];
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !selectedIssue) return;
 
-    setComments((prev) => [
-      ...prev,
-      {
-        id: `c-${Date.now()}`,
-        user: "Zain Bawa",
-        role: "Verified Resident",
-        text: commentText.trim(),
-        time: "Just now",
-      },
-    ]);
+    addCommentToIssue(selectedIssue.id, commentText.trim());
     setCommentText("");
-    showToast("Evidence note added to public issue record");
   };
 
   return (
@@ -353,6 +336,37 @@ export const IssueDetailModal: React.FC = () => {
             <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs">
               <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>{selectedIssue.addressApprox} · {selectedIssue.ucName}</span>
+            </div>
+
+            {/* Reporter Origin & Verification Attribution */}
+            <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                {selectedIssue.isAnonymous ? (
+                  <>
+                    <Shield className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">Anonymous Resident</span>
+                    <span className="text-[10px] text-slate-400 font-mono">(Geofence Verified)</span>
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="w-3.5 h-3.5 text-teal-600" />
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      Reported by {selectedIssue.reporterName || "Verified Resident"}
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                      1.0x Weight
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <span className="text-slate-400 text-[11px] font-medium">
+                {new Date(selectedIssue.createdAt).toLocaleDateString("en-PK", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
             </div>
 
             {selectedIssue.description && (
@@ -910,46 +924,108 @@ export const IssueDetailModal: React.FC = () => {
             </div>
           ) : null}
 
-          {/* 5. Evidence & Community Notes */}
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Community Evidence &amp; Notes ({comments.length})
-            </h3>
-
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {comments.map((c) => (
-                <div
-                  key={c.id}
-                  className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      {c.user} <span className="text-teal-600 font-normal">({c.role})</span>
-                    </span>
-                    <span className="text-slate-400">{c.time}</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {c.text}
-                  </p>
-                </div>
-              ))}
+          {/* 5. Evidence & Community Discussion Notes */}
+          <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
+                <span>Community Evidence &amp; Citizen Notes ({issueComments.length})</span>
+              </h3>
+              <span className="text-[10px] text-slate-400">Public &amp; Audited</span>
             </div>
 
+            {issueComments.length === 0 ? (
+              <div className="p-3 text-center rounded-xl bg-slate-50 dark:bg-slate-800/40 text-[11px] text-slate-400">
+                No notes or evidence comments yet. Be the first neighbor or official to add ground context!
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {issueComments.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 text-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-[11px] gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-teal-600/20 text-teal-700 dark:text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {c.userName[0]}
+                        </div>
+                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {c.userName}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold shrink-0 ${
+                            c.userRole === "official"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                              : c.userRole === "ngo"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : c.userRole === "community_leader"
+                              ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                              : c.userRole === "admin"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                              : "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"
+                          }`}
+                        >
+                          {c.userRole === "official"
+                            ? "UC Chairman"
+                            : c.userRole === "ngo"
+                            ? "NGO Relief"
+                            : c.userRole === "community_leader"
+                            ? "Ward Leader"
+                            : c.userRole === "admin"
+                            ? "City Admin"
+                            : "Verified Resident"}
+                        </span>
+                      </div>
+                      <span className="text-slate-400 font-mono text-[10px] shrink-0">
+                        {new Date(c.createdAt).toLocaleDateString("en-PK", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-xs">
+                      {c.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Add note input */}
-            <form onSubmit={handleAddComment} className="flex gap-2 pt-1">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add factual context (280 characters)..."
-                className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
-              />
-              <button
-                type="submit"
-                className="px-3 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg text-xs font-bold transition cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
+            <form onSubmit={handleAddComment} className="space-y-1.5 pt-1">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add ground evidence or neighborhood update (280 chars)..."
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Post</span>
+                </button>
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center justify-between px-1">
+                <span>
+                  Posting as:{" "}
+                  <strong className="text-slate-700 dark:text-slate-300">
+                    {activeRole === "official"
+                      ? `${activeUC.chairman.name} (Chairman)`
+                      : activeRole === "ngo"
+                      ? "Al-Khidmat / Edhi Relief Unit"
+                      : activeRole === "community_leader"
+                      ? "Community Leader"
+                      : activeRole === "admin"
+                      ? "City Oversight SuperAdmin"
+                      : "Zain Bawa (Verified Resident)"}
+                  </strong>
+                </span>
+                <span>SHA-256 Public Audit</span>
+              </div>
             </form>
           </div>
         </div>

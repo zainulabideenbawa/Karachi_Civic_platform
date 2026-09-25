@@ -169,6 +169,7 @@ export interface Issue {
     notFixedVotes: number;
     userVoted?: "fixed" | "not_fixed";
   };
+  comments?: CommentRecord[];
 }
 
 export interface CommentRecord {

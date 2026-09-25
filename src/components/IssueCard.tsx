@@ -19,6 +19,8 @@ import {
   ArrowRight,
   CheckCircle,
   Share2,
+  Shield,
+  UserCheck,
 } from "lucide-react";
 
 interface IssueCardProps {
@@ -109,6 +111,30 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
           <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mt-1.5">
             <MapPin className="w-3.5 h-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
             <span className="truncate">{issue.addressApprox}</span>
+          </div>
+
+          {/* Reporter & Origin Attribution Line */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {issue.isAnonymous ? (
+                <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                  <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">Anonymous Resident</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-teal-700 dark:text-teal-400 font-semibold truncate">
+                  <UserCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  <span className="truncate">Reported by {issue.reporterName || "Resident"}</span>
+                </span>
+              )}
+            </div>
+
+            {issue.comments && issue.comments.length > 0 && (
+              <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400 font-medium text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md shrink-0">
+                <MessageSquare className="w-3 h-3 text-slate-400" />
+                <span>{issue.comments.length} notes</span>
+              </span>
+            )}
           </div>
         </div>
 

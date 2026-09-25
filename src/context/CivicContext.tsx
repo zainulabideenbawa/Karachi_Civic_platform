@@ -17,6 +17,7 @@ import {
   ManagedUser,
   OfficialVerificationClaim,
   JurisdictionDispute,
+  CommentRecord,
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
@@ -160,6 +161,7 @@ interface CivicContextType {
   resolveAdoptedIssue: (issueId: string, afterPhotoUrl: string, note: string) => { success: boolean; message: string };
   applyBecomeLeader: (data: { realName: string; photoUrl: string; bio: string; whyServe: string; party: string; plansToContest: "yes" | "no" | "prefer_not_to_say"; ucId: string }) => void;
   followLeader: (leaderId: string) => void;
+  addCommentToIssue: (issueId: string, body: string, customAuthorName?: string) => void;
   
   // Toasts with Undo
   toast: ToastMessage | null;
@@ -1492,6 +1494,61 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     showToast(`Now following ${leader?.realName || "Community Leader"}. You'll receive updates on their adoptions & events!`);
   };
 
+  const addCommentToIssue = (issueId: string, body: string, customAuthorName?: string) => {
+    let author = customAuthorName || "Zain Bawa";
+    let role = activeRole;
+    let commentType: CommentRecord["type"] = "evidence";
+
+    if (activeRole === "official") {
+      author = `${activeUC.chairman.name} (UC Chairman)`;
+      commentType = "official";
+    } else if (activeRole === "ngo") {
+      author = "Al-Khidmat & Edhi Disaster Relief Unit";
+      commentType = "ngo";
+    } else if (activeRole === "community_leader") {
+      author = customAuthorName || "Tariq Aziz (Ward Leader)";
+      commentType = "solution";
+    } else if (activeRole === "admin") {
+      author = "City Oversight SuperAdmin";
+      commentType = "official";
+    }
+
+    const newComment: CommentRecord = {
+      id: `comm-${Date.now()}`,
+      issueId,
+      userId: `user-${Date.now()}`,
+      userName: author,
+      userRole: role,
+      type: commentType,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+
+    setIssues((prev) =>
+      prev.map((iss) => {
+        if (iss.id === issueId) {
+          return {
+            ...iss,
+            comments: [...(iss.comments || []), newComment],
+          };
+        }
+        return iss;
+      })
+    );
+
+    setSelectedIssue((prev) => {
+      if (prev && prev.id === issueId) {
+        return {
+          ...prev,
+          comments: [...(prev.comments || []), newComment],
+        };
+      }
+      return prev;
+    });
+
+    showToast("Evidence note & comment published to issue record!");
+  };
+
   return (
     <CivicContext.Provider
       value={{
@@ -1564,6 +1621,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         resolveAdoptedIssue,
         applyBecomeLeader,
         followLeader,
+        addCommentToIssue,
         toast,
         showToast,
         dismissToast,
