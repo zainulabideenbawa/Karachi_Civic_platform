@@ -4,24 +4,54 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useCivic } from "@/context/CivicContext";
 import { CIVIC_CATEGORIES } from "@/config/categories";
-import { Issue, UC } from "@/types/civic";
+import { Issue } from "@/types/civic";
 import { StatusPill } from "../StatusPill";
 import {
-  Clock,
-  Users,
   Layers,
-  Flame,
-  MapPin,
-  Building2,
-  CheckCircle2,
-  ArrowRight,
-  ShieldAlert,
   Crosshair,
   Compass,
   AlertTriangle,
   ZoomIn,
   ZoomOut,
+  CloudRain,
+  MapPin,
+  ArrowRight,
+  X,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Users,
 } from "lucide-react";
+
+type MapStyle = "humanitarian" | "standard" | "satellite";
+
+const MAP_STYLES: Record<
+  MapStyle,
+  { name: string; url: string; subdomains?: string[]; attribution: string; maxZoom: number }
+> = {
+  humanitarian: {
+    name: "Civic Day",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c"],
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles by <a href="https://www.hotosm.org/">HOT</a>',
+    maxZoom: 19,
+  },
+  standard: {
+    name: "OpenStreetMap",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  },
+  satellite: {
+    name: "Satellite Aerial",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution:
+      "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP",
+    maxZoom: 19,
+  },
+};
 
 export const MapTab: React.FC = () => {
   const { issues, activeUC, setActiveUC, setSelectedIssue, allUCs } = useCivic();
@@ -31,10 +61,14 @@ export const MapTab: React.FC = () => {
   const [monsoonMode, setMonsoonMode] = useState<boolean>(false);
   const [showBoundaries, setShowBoundaries] = useState<boolean>(true);
   const [selectedIssuePin, setSelectedIssuePin] = useState<Issue | null>(null);
+  const [currentMapStyle, setCurrentMapStyle] = useState<MapStyle>("humanitarian");
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState<boolean>(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstanceRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeTileLayerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersLayerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,43 +89,39 @@ export const MapTab: React.FC = () => {
     return true;
   });
 
-  // Initialize bright Leaflet map on client mount
+  // Initialize Leaflet map on mount with 100% open source, fast tiles (NO API keys, NO watermarks)
   useEffect(() => {
     let isMounted = true;
 
     async function initMap() {
       if (typeof window === "undefined" || !mapContainerRef.current) return;
-      if (mapInstanceRef.current) return; // already initialized
+      if (mapInstanceRef.current) return;
 
       try {
         const L = (await import("leaflet")).default;
 
-        // Default center: Karachi Gulshan Town / Civic Centre area
+        const initialLat = activeUC?.lat || 24.918;
+        const initialLng = activeUC?.lng || 67.097;
+
         const map = L.map(mapContainerRef.current, {
-          center: [activeUC.lat || 24.918, activeUC.lng || 67.097],
+          center: [initialLat, initialLng],
           zoom: 14,
           zoomControl: false,
+          attributionControl: false, // We render a clean minimal attribution pill
         });
 
-        // Bright, crisp, high-detail daylight street map tiles (CartoDB Voyager)
-        L.tileLayer(
-          "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-          {
-            attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            maxZoom: 19,
-            subdomains: "abcd",
-          }
-        ).addTo(map);
-
-        // Zoom control in bottom right
-        L.control.zoom({ position: "bottomright" }).addTo(map);
+        const styleConfig = MAP_STYLES[currentMapStyle];
+        const tileLayer = L.tileLayer(styleConfig.url, {
+          maxZoom: styleConfig.maxZoom,
+          subdomains: styleConfig.subdomains || "abc",
+        }).addTo(map);
 
         const markersLayer = L.layerGroup().addTo(map);
         const polygonsLayer = L.layerGroup().addTo(map);
 
         if (isMounted) {
           mapInstanceRef.current = map;
+          activeTileLayerRef.current = tileLayer;
           markersLayerRef.current = markersLayer;
           polygonsLayerRef.current = polygonsLayer;
         }
@@ -111,7 +141,27 @@ export const MapTab: React.FC = () => {
     };
   }, []);
 
-  // Update Markers & Polygons when filters or issues change
+  // Switch Tile Layer dynamically (Civic Day, Standard OSM, Satellite)
+  useEffect(() => {
+    async function updateTileLayer() {
+      if (!mapInstanceRef.current || !activeTileLayerRef.current) return;
+      const L = (await import("leaflet")).default;
+      const map = mapInstanceRef.current;
+
+      map.removeLayer(activeTileLayerRef.current);
+      const styleConfig = MAP_STYLES[currentMapStyle];
+      const newLayer = L.tileLayer(styleConfig.url, {
+        maxZoom: styleConfig.maxZoom,
+        subdomains: styleConfig.subdomains || "abc",
+      }).addTo(map);
+
+      activeTileLayerRef.current = newLayer;
+    }
+
+    updateTileLayer();
+  }, [currentMapStyle]);
+
+  // Update Markers & UC Boundary Polygons
   useEffect(() => {
     async function updateLayers() {
       if (!mapInstanceRef.current || !markersLayerRef.current) return;
@@ -127,40 +177,52 @@ export const MapTab: React.FC = () => {
       if (showBoundaries && polygonsLayer) {
         const ucPolygons = [
           {
-            id: "uc-7",
-            name: "UC-7 Gulshan-e-Iqbal",
-            score: 74,
+            id: "uc-gulshan-7",
+            name: "UC-7 Gulshan (NIPA / Block 13)",
+            score: 79.4,
             coords: [
               [24.928, 67.085],
               [24.935, 67.108],
               [24.912, 67.115],
               [24.905, 67.090],
             ],
-            color: "#059669", // Emerald
+            color: "#059669",
           },
           {
-            id: "uc-8",
-            name: "UC-8 Jamia Farooqia",
-            score: 58,
-            coords: [
-              [24.935, 67.108],
-              [24.942, 67.132],
-              [24.918, 67.140],
-              [24.912, 67.115],
-            ],
-            color: "#d97706", // Amber
-          },
-          {
-            id: "uc-9",
-            name: "UC-9 Civic Centre",
-            score: 65,
+            id: "uc-gulshan-4",
+            name: "UC-4 Civic Centre",
+            score: 66.8,
             coords: [
               [24.905, 67.090],
               [24.912, 67.115],
               [24.895, 67.120],
               [24.888, 67.095],
             ],
-            color: "#0284c7", // Sky
+            color: "#0284c7",
+          },
+          {
+            id: "uc-gulshan-6",
+            name: "UC-6 Block 6 & 7",
+            score: 62.4,
+            coords: [
+              [24.920, 67.075],
+              [24.928, 67.085],
+              [24.905, 67.090],
+              [24.898, 67.080],
+            ],
+            color: "#d97706",
+          },
+          {
+            id: "uc-gulshan-3",
+            name: "UC-3 Essa Nagri",
+            score: 38.2,
+            coords: [
+              [24.908, 67.060],
+              [24.915, 67.072],
+              [24.896, 67.075],
+              [24.890, 67.062],
+            ],
+            color: "#e11d48",
           },
         ];
 
@@ -169,13 +231,13 @@ export const MapTab: React.FC = () => {
           const poly = L.polygon(uc.coords as any, {
             color: uc.color,
             weight: 2,
-            opacity: 0.8,
+            opacity: 0.85,
             fillColor: uc.color,
             fillOpacity: 0.12,
           });
 
           poly.bindTooltip(
-            `<strong>${uc.name}</strong><br/>Civic Score: ${uc.score}/100`,
+            `<strong>${uc.name}</strong><br/>Score: ${uc.score}/100`,
             { sticky: true }
           );
 
@@ -200,25 +262,25 @@ export const MapTab: React.FC = () => {
           <div style="position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer;">
             ${
               isDangerous
-                ? `<div style="position: absolute; width: 34px; height: 34px; border-radius: 9999px; background-color: rgba(220, 38, 38, 0.4); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 9999px; background-color: rgba(220, 38, 38, 0.35); animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
                 : isSelected
                 ? `<div style="position: absolute; width: 36px; height: 36px; border-radius: 9999px; background-color: rgba(15, 118, 110, 0.35);"></div>`
                 : ""
             }
             <div style="
-              width: ${isSelected ? "28px" : "22px"};
-              height: ${isSelected ? "28px" : "22px"};
+              width: ${isSelected ? "32px" : "24px"};
+              height: ${isSelected ? "32px" : "24px"};
               border-radius: 9999px;
               background-color: ${isDangerous ? "#dc2626" : pinColor};
-              border: 2px solid #ffffff;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25);
+              border: 2.5px solid #ffffff;
+              box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
               display: flex;
               align-items: center;
               justify-content: center;
               color: #ffffff;
-              font-size: 10px;
+              font-size: ${isSelected ? "11px" : "10px"};
               font-weight: 800;
-              transition: all 0.2s ease;
+              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             ">
               ${issue.affectedCount > 1 ? issue.affectedCount : "•"}
             </div>
@@ -228,8 +290,8 @@ export const MapTab: React.FC = () => {
         const customIcon = L.divIcon({
           html: iconHtml,
           className: "custom-civic-marker",
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
         });
 
         const marker = L.marker([issue.lat, issue.lng], { icon: customIcon });
@@ -248,25 +310,33 @@ export const MapTab: React.FC = () => {
     updateLayers();
   }, [filteredIssues, showBoundaries, monsoonMode, selectedIssuePin]);
 
-  // Handle Center on My UC
+  // Recenter on Active UC
   const handleCenterOnMyUC = () => {
     if (mapInstanceRef.current && activeUC) {
-      mapInstanceRef.current.flyTo([activeUC.lat, activeUC.lng], 15, { duration: 1 });
+      mapInstanceRef.current.flyTo([activeUC.lat, activeUC.lng], 15, { duration: 0.8 });
     }
   };
 
+  const handleZoomIn = () => {
+    if (mapInstanceRef.current) mapInstanceRef.current.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstanceRef.current) mapInstanceRef.current.zoomOut();
+  };
+
   return (
-    <div className="relative h-[calc(100vh-8.5rem)] w-full flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white shadow-md">
-      {/* Top Floating Controls & Filter Ribbon */}
+    <div className="relative h-[calc(100vh-8.5rem)] w-full flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-md">
+      {/* Top Floating Sleek Control Bar */}
       <div className="absolute top-3 inset-x-3 z-[1000] flex flex-col gap-2 pointer-events-none">
-        {/* Horizontal Category Scroll Bar */}
+        {/* Compact Glassmorphic Search & Category Ribbon */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pointer-events-auto">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-md cursor-pointer transition ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-sm cursor-pointer transition ${
               selectedCategory === "all"
-                ? "bg-teal-700 text-white ring-2 ring-teal-400"
-                : "bg-white/95 text-slate-800 border border-slate-200 backdrop-blur-md hover:bg-slate-50"
+                ? "bg-teal-700 text-white shadow-teal-700/20"
+                : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 backdrop-blur-md hover:bg-slate-50"
             }`}
           >
             All Categories ({issues.length})
@@ -275,10 +345,10 @@ export const MapTab: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-md cursor-pointer transition ${
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm cursor-pointer transition ${
                 selectedCategory === cat.id
-                  ? "bg-teal-700 text-white font-bold ring-2 ring-teal-400"
-                  : "bg-white/95 text-slate-800 border border-slate-200 backdrop-blur-md hover:bg-slate-50"
+                  ? "bg-teal-700 text-white font-bold shadow-teal-700/20"
+                  : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 backdrop-blur-md hover:bg-slate-50"
               }`}
             >
               {cat.name.en}
@@ -286,67 +356,142 @@ export const MapTab: React.FC = () => {
           ))}
         </div>
 
-        {/* Secondary Filter & Mode Ribbon */}
-        <div className="flex items-center justify-between gap-2 flex-wrap pointer-events-auto">
-          <div className="flex items-center gap-2">
-            {/* Status Dropdown */}
-            <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-md border border-slate-200 text-slate-800">
-              <Layers className="w-3.5 h-3.5 text-teal-700" />
+        {/* Minimal Sub-Filter Row */}
+        <div className="flex items-center justify-between gap-2 pointer-events-auto">
+          <div className="flex items-center gap-1.5">
+            {/* Status Quick Pill Dropdown */}
+            <div className="flex items-center gap-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-semibold shadow-sm border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+              <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden"
+                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-hidden py-0.5"
               >
                 <option value="all">All Statuses</option>
-                <option value="open">Open</option>
+                <option value="open">Open Issues</option>
                 <option value="in_progress">In Progress</option>
                 <option value="marked_resolved">Waiting Confirmation</option>
                 <option value="confirmed">Confirmed Fixed</option>
               </select>
             </div>
 
-            {/* UC Zones Toggle */}
-            <button
-              onClick={() => setShowBoundaries(!showBoundaries)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer border ${
-                showBoundaries
-                  ? "bg-teal-700 text-white border-teal-600 ring-2 ring-teal-400"
-                  : "bg-white/95 text-slate-800 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5" />
-              <span>UC Zones</span>
-            </button>
-
-            {/* Monsoon Floods Emergency Mode (Section 15.1) */}
+            {/* Monsoon Floods Emergency Mode */}
             <button
               onClick={() => setMonsoonMode(!monsoonMode)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer border ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer border ${
                 monsoonMode
-                  ? "bg-sky-600 text-white border-sky-500 ring-2 ring-sky-300 animate-pulse"
-                  : "bg-white/95 text-slate-800 border-slate-200 hover:bg-slate-50"
+                  ? "bg-sky-600 text-white border-sky-500 shadow-sky-600/30 animate-pulse"
+                  : "bg-white/95 dark:bg-slate-800/95 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
               }`}
             >
-              <span>🌧 Monsoon Hazard Mode</span>
-              {monsoonMode && <span className="text-[10px] bg-sky-800 text-white px-1.5 rounded">LIVE</span>}
+              <CloudRain className="w-3.5 h-3.5 text-sky-500" />
+              <span>Monsoon Hazard</span>
+              {monsoonMode && <span className="text-[9px] bg-sky-800 text-white px-1 rounded">ON</span>}
             </button>
           </div>
 
-          {/* Center on My UC Button */}
+          {/* Issue Counter Badge */}
+          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 shadow-sm flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{filteredIssues.length} live pins</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Action Dock (Right Side - Google/Apple Maps Style) */}
+      <div className="absolute right-3 top-24 z-[1000] flex flex-col gap-2">
+        {/* Recenter on My UC */}
+        <button
+          onClick={handleCenterOnMyUC}
+          className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-teal-50 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer transition active:scale-95 group relative"
+          title={`Recenter on ${activeUC.name}`}
+        >
+          <Crosshair className="w-5 h-5" />
+          <span className="absolute right-12 whitespace-nowrap bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-md">
+            My UC: {activeUC.name.split(" ")[0]}
+          </span>
+        </button>
+
+        {/* UC Boundaries Toggle */}
+        <button
+          onClick={() => setShowBoundaries(!showBoundaries)}
+          className={`w-10 h-10 rounded-xl border shadow-md flex items-center justify-center cursor-pointer transition active:scale-95 group relative ${
+            showBoundaries
+              ? "bg-teal-700 text-white border-teal-600 shadow-teal-700/20"
+              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+          }`}
+          title="Toggle UC Ward Boundaries"
+        >
+          <Compass className="w-5 h-5" />
+          <span className="absolute right-12 whitespace-nowrap bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-md">
+            {showBoundaries ? "Hide UC Zones" : "Show UC Zones"}
+          </span>
+        </button>
+
+        {/* Layer Switcher Button */}
+        <div className="relative">
           <button
-            onClick={handleCenterOnMyUC}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 text-slate-800 text-xs font-bold border border-slate-200 shadow-md hover:bg-slate-50 transition cursor-pointer"
-            title="Recenter map on your home UC"
+            onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
+            className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer transition active:scale-95"
+            title="Change Map Style"
           >
-            <Crosshair className="w-3.5 h-3.5 text-teal-700" />
-            <span>My UC: {activeUC.name}</span>
+            <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          </button>
+
+          {/* Layer Menu Popup */}
+          {isLayerMenuOpen && (
+            <div className="absolute right-12 top-0 bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col gap-1 w-44 animate-in fade-in zoom-in-95 duration-150">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
+                Map Basemap
+              </span>
+              {(Object.keys(MAP_STYLES) as MapStyle[]).map((styleKey) => (
+                <button
+                  key={styleKey}
+                  onClick={() => {
+                    setCurrentMapStyle(styleKey);
+                    setIsLayerMenuOpen(false);
+                  }}
+                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                    currentMapStyle === styleKey
+                      ? "bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 font-bold border border-teal-200 dark:border-teal-800"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <span>{MAP_STYLES[styleKey].name}</span>
+                  {currentMapStyle === styleKey && <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="flex flex-col rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-md bg-white dark:bg-slate-800 mt-2">
+          <button
+            onClick={handleZoomIn}
+            className="w-10 h-9 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-200 dark:border-slate-700 transition"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="w-10 h-9 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Real Daylight Bright Street Map Layer */}
-      <div className="relative flex-1 w-full h-full bg-slate-100">
+      {/* Real Open Source Map Viewport */}
+      <div className="relative flex-1 w-full h-full bg-slate-100 dark:bg-slate-900">
         <div ref={mapContainerRef} className="w-full h-full z-0" />
+      </div>
+
+      {/* Bottom Minimal Attribution Pill */}
+      <div className="absolute bottom-1.5 left-2 z-[900] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] text-slate-500 font-medium pointer-events-none">
+        Open Data © OpenStreetMap contributors
       </div>
 
       {/* Bottom Floating Issue Preview Card */}
@@ -372,26 +517,35 @@ export const MapTab: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <StatusPill status={selectedIssuePin.status} daysOpen={selectedIssuePin.daysOpen} />
-                <span className="text-[11px] text-slate-500 font-semibold truncate">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">
                   {selectedIssuePin.ucName}
                 </span>
               </div>
               <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate mt-0.5">
                 {selectedIssuePin.title}
               </h4>
-              <p className="text-[11px] text-slate-400 truncate">
-                {selectedIssuePin.addressApprox} · <strong className="text-slate-700 dark:text-slate-300">{selectedIssuePin.affectedCount} affected</strong>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {selectedIssuePin.addressApprox} · <strong className="text-slate-700 dark:text-slate-200">{selectedIssuePin.affectedCount} affected</strong>
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => setSelectedIssue(selectedIssuePin)}
-            className="shrink-0 px-3.5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1"
-          >
-            <span>View Details</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setSelectedIssue(selectedIssuePin)}
+              className="px-3.5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1"
+            >
+              <span>View</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setSelectedIssuePin(null)}
+              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+              title="Close Preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>
