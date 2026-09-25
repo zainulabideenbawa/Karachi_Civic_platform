@@ -52,6 +52,7 @@ export const MeTab: React.FC = () => {
     language,
     setLanguage,
     resetDemoData,
+    setIsThinkTankModalOpen,
   } = useCivic();
 
   const myReports = issues.filter((i) => i.reporterId === "user-101");
@@ -547,6 +548,28 @@ export const MeTab: React.FC = () => {
           <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
             Enabled (Web Push)
           </span>
+        </div>
+
+        {/* Think Tanks & Policy Briefs (Section 9) */}
+        <div
+          onClick={() => setIsThinkTankModalOpen(true)}
+          className="p-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition"
+        >
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-4 h-4 text-emerald-600" />
+            <div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <span>Think Tanks &amp; Policy Briefs</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-sm bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  Sec 9
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400">
+                1-page data briefs, proposal tracker, apply for stage
+              </div>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400" />
         </div>
 
         {/* Home Union Council */}
