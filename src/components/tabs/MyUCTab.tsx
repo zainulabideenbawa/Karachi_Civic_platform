@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { useCivic } from "@/context/CivicContext";
 import { ScoreRing } from "../ScoreRing";
@@ -59,33 +59,37 @@ export const MyUCTab: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<"all" | "urgent" | "in_progress" | "marked_resolved" | "adoptable">("all");
   const [sortBy, setSortBy] = useState<"oldest" | "affected" | "recent">("oldest");
 
-  // Filter issues for this UC
-  const ucIssues = issues.filter((iss) => iss.ucId === activeUC.id);
+  // Filter issues for this UC (memoized)
+  const ucIssues = useMemo(() => issues.filter((iss) => iss.ucId === activeUC.id), [issues, activeUC.id]);
 
   // Role counts
-  const urgentCount = ucIssues.filter((i) => i.status === "open" && !i.officialResponse).length;
-  const inProgressCount = ucIssues.filter((i) => i.status === "in_progress").length;
-  const markedResolvedCount = ucIssues.filter((i) => i.status === "marked_resolved").length;
-  const adoptableCount = ucIssues.filter((i) => i.daysOpen >= 7 && i.status !== "confirmed" && !i.adoptedByType).length;
+  const urgentCount = useMemo(() => ucIssues.filter((i) => i.status === "open" && !i.officialResponse).length, [ucIssues]);
+  const inProgressCount = useMemo(() => ucIssues.filter((i) => i.status === "in_progress").length, [ucIssues]);
+  const markedResolvedCount = useMemo(() => ucIssues.filter((i) => i.status === "marked_resolved").length, [ucIssues]);
+  const adoptableCount = useMemo(() => ucIssues.filter((i) => i.daysOpen >= 7 && i.status !== "confirmed" && !i.adoptedByType).length, [ucIssues]);
 
-  const filteredIssues = ucIssues.filter((iss) => {
-    if (activeCategoryFilter !== "all" && iss.categoryId !== activeCategoryFilter) return false;
-    if (roleFilter === "urgent") return iss.status === "open" && !iss.officialResponse;
-    if (roleFilter === "in_progress") return iss.status === "in_progress";
-    if (roleFilter === "marked_resolved") return iss.status === "marked_resolved";
-    if (roleFilter === "adoptable") return iss.daysOpen >= 7 && iss.status !== "confirmed" && !iss.adoptedByType;
-    return true;
-  });
+  const filteredIssues = useMemo(() => {
+    return ucIssues.filter((iss) => {
+      if (activeCategoryFilter !== "all" && iss.categoryId !== activeCategoryFilter) return false;
+      if (roleFilter === "urgent") return iss.status === "open" && !iss.officialResponse;
+      if (roleFilter === "in_progress") return iss.status === "in_progress";
+      if (roleFilter === "marked_resolved") return iss.status === "marked_resolved";
+      if (roleFilter === "adoptable") return iss.daysOpen >= 7 && iss.status !== "confirmed" && !iss.adoptedByType;
+      return true;
+    });
+  }, [ucIssues, activeCategoryFilter, roleFilter]);
 
-  // Sort issues
-  const sortedIssues = [...filteredIssues].sort((a, b) => {
-    if (sortBy === "oldest") return b.daysOpen - a.daysOpen; // Oldest first (Section 10.1)
-    if (sortBy === "affected") return b.affectedCount - a.affectedCount;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  // Sort issues (memoized)
+  const sortedIssues = useMemo(() => {
+    return [...filteredIssues].sort((a, b) => {
+      if (sortBy === "oldest") return b.daysOpen - a.daysOpen; // Oldest first (Section 10.1)
+      if (sortBy === "affected") return b.affectedCount - a.affectedCount;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [filteredIssues, sortBy]);
 
-  const ucEvents = events.filter((ev) => ev.ucId === activeUC.id);
-  const ucPromises = promises.filter((p) => p.officialId === activeUC.chairman.id);
+  const ucEvents = useMemo(() => events.filter((ev) => ev.ucId === activeUC.id), [events, activeUC.id]);
+  const ucPromises = useMemo(() => promises.filter((p) => p.officialId === activeUC.chairman.id), [promises, activeUC.chairman.id]);
 
   return (
     <div className="space-y-4 pb-20 animate-in fade-in duration-200">

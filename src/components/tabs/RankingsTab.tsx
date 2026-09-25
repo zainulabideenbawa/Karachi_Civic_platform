@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { useCivic } from "@/context/CivicContext";
 import {
@@ -38,19 +38,25 @@ export const RankingsTab: React.FC = () => {
   const [filterVolume, setFilterVolume] = useState<"all" | "high">("all");
   const [leadersScope, setLeadersScope] = useState<"city" | "town" | "uc">("city");
 
-  // Filter & sort UCs
-  const sortedUCs = [...allUCs]
-    .filter((uc) => {
-      if (filterVolume === "high") return uc.totalEligibleIssues >= 40;
-      return true;
-    })
-    .sort((a, b) => b.score - a.score);
+  // Filter & sort UCs (memoized)
+  const sortedUCs = useMemo(() => {
+    return [...allUCs]
+      .filter((uc) => {
+        if (filterVolume === "high") return uc.totalEligibleIssues >= 40;
+        return true;
+      })
+      .sort((a, b) => b.score - a.score);
+  }, [allUCs, filterVolume]);
 
-  const mostImprovedUCs = [...allUCs]
-    .filter((uc) => uc.trend30d > 0)
-    .sort((a, b) => b.trend30d - a.trend30d);
+  const mostImprovedUCs = useMemo(() => {
+    return [...allUCs]
+      .filter((uc) => uc.trend30d > 0)
+      .sort((a, b) => b.trend30d - a.trend30d);
+  }, [allUCs]);
 
-  const sortedTowns = [...allTowns].sort((a, b) => b.teamScore - a.teamScore);
+  const sortedTowns = useMemo(() => {
+    return [...allTowns].sort((a, b) => b.teamScore - a.teamScore);
+  }, [allTowns]);
 
   return (
     <div className="space-y-4 pb-20 animate-in fade-in duration-200">

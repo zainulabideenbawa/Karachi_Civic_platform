@@ -11,28 +11,31 @@ import { ReportTab } from "@/components/tabs/ReportTab";
 import { RankingsTab } from "@/components/tabs/RankingsTab";
 import { MeTab } from "@/components/tabs/MeTab";
 
-import { IssueDetailModal } from "@/components/modals/IssueDetailModal";
-import { WhatsAppAuthModal } from "@/components/modals/WhatsAppAuthModal";
-import { ScoreFormulaModal } from "@/components/modals/ScoreFormulaModal";
-import { OfficialDashboardModal } from "@/components/dashboards/OfficialDashboardModal";
-import { AdminConsoleModal } from "@/components/dashboards/AdminConsoleModal";
-import { SearchModal } from "@/components/modals/SearchModal";
-import { UCPollsModal } from "@/components/modals/UCPollsModal";
-import { NGOsModal } from "@/components/modals/NGOsModal";
-import { BaithakPanelModal } from "@/components/modals/BaithakPanelModal";
-import { LeaderProfileModal } from "@/components/modals/LeaderProfileModal";
-import { BecomeLeaderModal } from "@/components/modals/BecomeLeaderModal";
-import { LeaderDashboardModal } from "@/components/dashboards/LeaderDashboardModal";
-import { UCIdeasBoardModal } from "@/components/modals/UCIdeasBoardModal";
-import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
-import { OnboardingModal } from "@/components/modals/OnboardingModal";
-import { OfficialProfileModal } from "@/components/modals/OfficialProfileModal";
-import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
-import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
+import dynamic from "next/dynamic";
 import { RoleBanner } from "@/components/RoleBanner";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
-import { NGODashboardModal } from "@/components/dashboards/NGODashboardModal";
-import { ThinkTankModal } from "@/components/modals/ThinkTankModal";
+
+// Code-split all modals to minimize initial JS bundle size and maximize first paint speed
+const IssueDetailModal = dynamic(() => import("@/components/modals/IssueDetailModal").then((m) => m.IssueDetailModal), { ssr: false });
+const WhatsAppAuthModal = dynamic(() => import("@/components/modals/WhatsAppAuthModal").then((m) => m.WhatsAppAuthModal), { ssr: false });
+const ScoreFormulaModal = dynamic(() => import("@/components/modals/ScoreFormulaModal").then((m) => m.ScoreFormulaModal), { ssr: false });
+const OfficialDashboardModal = dynamic(() => import("@/components/dashboards/OfficialDashboardModal").then((m) => m.OfficialDashboardModal), { ssr: false });
+const AdminConsoleModal = dynamic(() => import("@/components/dashboards/AdminConsoleModal").then((m) => m.AdminConsoleModal), { ssr: false });
+const SearchModal = dynamic(() => import("@/components/modals/SearchModal").then((m) => m.SearchModal), { ssr: false });
+const UCPollsModal = dynamic(() => import("@/components/modals/UCPollsModal").then((m) => m.UCPollsModal), { ssr: false });
+const NGOsModal = dynamic(() => import("@/components/modals/NGOsModal").then((m) => m.NGOsModal), { ssr: false });
+const BaithakPanelModal = dynamic(() => import("@/components/modals/BaithakPanelModal").then((m) => m.BaithakPanelModal), { ssr: false });
+const LeaderProfileModal = dynamic(() => import("@/components/modals/LeaderProfileModal").then((m) => m.LeaderProfileModal), { ssr: false });
+const BecomeLeaderModal = dynamic(() => import("@/components/modals/BecomeLeaderModal").then((m) => m.BecomeLeaderModal), { ssr: false });
+const LeaderDashboardModal = dynamic(() => import("@/components/dashboards/LeaderDashboardModal").then((m) => m.LeaderDashboardModal), { ssr: false });
+const UCIdeasBoardModal = dynamic(() => import("@/components/modals/UCIdeasBoardModal").then((m) => m.UCIdeasBoardModal), { ssr: false });
+const FindMyUCModal = dynamic(() => import("@/components/modals/FindMyUCModal").then((m) => m.FindMyUCModal), { ssr: false });
+const OnboardingModal = dynamic(() => import("@/components/modals/OnboardingModal").then((m) => m.OnboardingModal), { ssr: false });
+const OfficialProfileModal = dynamic(() => import("@/components/modals/OfficialProfileModal").then((m) => m.OfficialProfileModal), { ssr: false });
+const RoleSwitcherModal = dynamic(() => import("@/components/modals/RoleSwitcherModal").then((m) => m.RoleSwitcherModal), { ssr: false });
+const WorkDoneShareModal = dynamic(() => import("@/components/modals/WorkDoneShareModal").then((m) => m.WorkDoneShareModal), { ssr: false });
+const NGODashboardModal = dynamic(() => import("@/components/dashboards/NGODashboardModal").then((m) => m.NGODashboardModal), { ssr: false });
+const ThinkTankModal = dynamic(() => import("@/components/modals/ThinkTankModal").then((m) => m.ThinkTankModal), { ssr: false });
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
