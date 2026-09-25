@@ -32,6 +32,7 @@ import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
 import { RoleBanner } from "@/components/RoleBanner";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
 import { NGODashboardModal } from "@/components/dashboards/NGODashboardModal";
+import { ThinkTankModal } from "@/components/modals/ThinkTankModal";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -89,6 +90,7 @@ function CivicAppContent() {
       />
       <WorkDoneShareModal />
       <NGODashboardModal />
+      <ThinkTankModal />
     </div>
   );
 }

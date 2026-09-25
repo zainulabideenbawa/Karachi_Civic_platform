@@ -384,3 +384,77 @@ export interface JurisdictionDispute {
   status: "pending" | "approved" | "rejected";
 }
 
+export type ProposalTrackerStatus =
+  | "sent"
+  | "acknowledged"
+  | "adopted"
+  | "implemented"
+  | "verified"
+  | "declined";
+
+export interface ThinkTankBrief {
+  id: string;
+  sessionNumber: number;
+  month: string;
+  topic: string;
+  slug: string;
+  targetArea: string;
+  dataSummary: string;
+  problemStatement: string;
+  rootCauses: string[];
+  proposedSolution: {
+    title: string;
+    estimatedCostPkr: string;
+    timelineWeeks: number;
+    description: string;
+  };
+  lowCostSolution?: string;
+  structuralSolution?: string;
+  responsibleBody: string;
+  targetOfficialName: string;
+  specificAsk: string;
+  quickWins: string[];
+  proposalStatus: ProposalTrackerStatus;
+  statusUpdateNote?: string;
+  statusHistory?: {
+    status: ProposalTrackerStatus;
+    date: string;
+    actor: string;
+    note: string;
+  }[];
+  applications?: ThinkTankApplication[];
+  participantsCount: number;
+  publishedDate: string;
+  videoClipUrl?: string;
+  stageApplicationsOpen: boolean;
+  upcomingSessionDate?: string;
+  platformMetrics?: {
+    totalReports: number;
+    avgResolutionDays: number;
+    affectedWards: number;
+    criticalIssues: number;
+  };
+}
+
+export interface ThinkTankApplication {
+  id: string;
+  briefId: string;
+  applicantName: string;
+  applicantRole?: string;
+  phoneMasked?: string;
+  contactWhatsApp?: string;
+  organization?: string;
+  connectionType?: "resident" | "field_expert" | "ngo" | "official";
+  background?: string;
+  whyJoin?: string;
+  proposedInsight?: string;
+  proposalPitch?: string;
+  postSessionContribution?: string;
+  consentRecording?: boolean;
+  appliedAt?: string;
+  submittedAt?: string;
+  geminiScore?: number;
+  status: "submitted" | "selected" | "audience" | "pending";
+}
+
+

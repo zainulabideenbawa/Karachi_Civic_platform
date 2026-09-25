@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   ChevronRight,
   TrendingUp,
+  FileText,
+  Download,
 } from "lucide-react";
 import { CIVIC_CATEGORIES } from "@/config/categories";
 
@@ -49,6 +51,8 @@ export const MyUCTab: React.FC = () => {
     setIsOfficialDashboardOpen,
     setIsLeaderDashboardOpen,
     setIsAdminConsoleOpen,
+    setIsThinkTankModalOpen,
+    exportIssuesCSV,
   } = useCivic();
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
@@ -367,8 +371,8 @@ export const MyUCTab: React.FC = () => {
         )}
       </section>
 
-      {/* 2. Quick Action Buttons: Suggest Idea, UC Polls, & NGOs/NO-GOs */}
-      <section className="grid grid-cols-3 gap-2">
+      {/* 2. Quick Action Buttons: Suggest Idea, UC Polls, NGOs/NO-GOs, & Think Tanks */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <button
           onClick={() => setIsIdeasModalOpen(true)}
           className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left shadow-xs"
@@ -403,6 +407,20 @@ export const MyUCTab: React.FC = () => {
           </div>
           <div className="text-xs font-bold text-slate-900 dark:text-slate-100">NGOs &amp; Rules</div>
           <div className="text-[10px] text-slate-400">NO-GO Firewalls</div>
+        </button>
+
+        <button
+          onClick={() => setIsThinkTankModalOpen(true)}
+          className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition cursor-pointer text-left shadow-xs group"
+        >
+          <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 shrink-0 mb-1.5 group-hover:scale-105 transition">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+            <span>Think Tanks</span>
+            <span className="text-[9px] px-1 py-0.2 rounded-sm bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold">Sec 9</span>
+          </div>
+          <div className="text-[10px] text-slate-400">1-Page Policy Briefs</div>
         </button>
       </section>
 
@@ -514,18 +532,30 @@ export const MyUCTab: React.FC = () => {
           <span className="text-xs text-slate-400">({sortedIssues.length})</span>
         </div>
 
-        {/* Sort selector */}
-        <div className="flex items-center gap-1 text-xs">
-          <Filter className="w-3.5 h-3.5 text-slate-400" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "oldest" | "affected" | "recent")}
-            className="bg-transparent text-slate-600 dark:text-slate-300 text-xs font-medium cursor-pointer focus:outline-hidden"
+        <div className="flex items-center gap-2">
+          {/* Section 10.1: Export CSV of issues */}
+          <button
+            onClick={() => exportIssuesCSV(activeUC.id)}
+            title="Download CSV spreadsheet of this Ward's issues"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-750 transition cursor-pointer"
           >
-            <option value="oldest">Oldest First</option>
-            <option value="affected">Most Affected</option>
-            <option value="recent">Most Recent</option>
-          </select>
+            <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Export</span> CSV
+          </button>
+
+          {/* Sort selector */}
+          <div className="flex items-center gap-1 text-xs">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "oldest" | "affected" | "recent")}
+              className="bg-transparent text-slate-600 dark:text-slate-300 text-xs font-medium cursor-pointer focus:outline-hidden"
+            >
+              <option value="oldest">Oldest First</option>
+              <option value="affected">Most Affected</option>
+              <option value="recent">Most Recent</option>
+            </select>
+          </div>
         </div>
       </div>
 

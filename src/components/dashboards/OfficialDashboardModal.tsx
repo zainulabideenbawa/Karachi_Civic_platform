@@ -16,6 +16,7 @@ import {
   Trash2,
   AlertTriangle,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { Issue } from "@/types/civic";
 
@@ -29,6 +30,7 @@ export const OfficialDashboardModal: React.FC = () => {
     officialMarkResolved,
     flagJurisdiction,
     showToast,
+    exportIssuesCSV,
   } = useCivic();
 
   const [selectedIssueToAct, setSelectedIssueToAct] = useState<Issue | null>(null);
@@ -474,9 +476,20 @@ export const OfficialDashboardModal: React.FC = () => {
 
           {/* Issues Inbox (Oldest First) */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Active Issues Queue in {activeUC.name} ({openIssues.length} Unresolved)
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Active Issues Queue in {activeUC.name} ({openIssues.length} Unresolved)
+              </h3>
+              <button
+                type="button"
+                onClick={() => exportIssuesCSV(activeUC.id)}
+                title="Export this UC's issues to CSV for municipal delegations"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-teal-600/30 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-teal-600" />
+                <span>Export CSV</span>
+              </button>
+            </div>
 
             <div className="space-y-2">
               {openIssues.map((issue) => (

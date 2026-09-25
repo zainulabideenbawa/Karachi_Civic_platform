@@ -13,6 +13,7 @@ import {
   ManagedUser,
   OfficialVerificationClaim,
   JurisdictionDispute,
+  ThinkTankBrief,
 } from "@/types/civic";
 
 export const MOCK_TOWNS: Town[] = [
@@ -1111,4 +1112,122 @@ export const MOCK_JURISDICTION_DISPUTES: JurisdictionDispute[] = [
     status: "pending",
   },
 ];
+
+export const MOCK_THINK_TANK_BRIEFS: ThinkTankBrief[] = [
+  {
+    id: "brief-01",
+    sessionNumber: 1,
+    month: "September 2026",
+    topic: "Korangi Industrial Zone Sewerage Overflow & Toxic Chemical Siltation",
+    slug: "korangi-industrial-sewerage",
+    targetArea: "Korangi Industrial Area & Sector 7-A",
+    dataSummary: "48 open sewerage reports on platform; 3.4x spike in industrial gutter overflows since July 2026.",
+    problemStatement:
+      "Heavy industrial tanneries and textile processing units in Sector 7-A discharge untreated solid sludge into municipal open drains, causing severe street waterlogging, structural tarmac erosion, and respiratory hazards for 14,000+ daily factory workers.",
+    rootCauses: [
+      "Lack of pre-treatment sediment traps inside older industrial compound boundary walls",
+      "KW&SC 24-inch trunk sewer line completely chocked by chemical limestone sludge",
+      "Absence of regular municipal suction cleaning schedule along Sector 7-A bypass",
+      "Cross-jurisdiction buck-passing between KATI and Local Municipal Corporation",
+    ],
+    proposedSolution: {
+      title: "High-Pressure Hydro-Jet De-Silting & Mandatory Factory Sludge Traps",
+      estimatedCostPkr: "PKR 4.2 Million",
+      timelineWeeks: 4,
+      description:
+        "Deploy dual high-velocity suction gully emptiers along Sector 7-A arterial line while issuing a 30-day compliance directive for all 18 major tanneries to install mechanical gravel strainers.",
+    },
+    responsibleBody: "KW&SC Trunk Sewerage & Korangi Town Council",
+    targetOfficialName: "M. Aslam Khan (Chairman Korangi Town)",
+    specificAsk:
+      "Formal requisition to KW&SC Managing Director to allocate 2 permanent jetting suckers to Korangi Industrial Sub-Division by October 15, 2026.",
+    quickWins: [
+      "KATI to mobilize private suction contractor for immediate clearance of Sector 7-A bottleneck",
+      "Deploy community steel mesh grates over 12 high-hazard open manholes to prevent road fatalities",
+    ],
+    proposalStatus: "acknowledged",
+    statusUpdateNote:
+      "Korangi Town Chairman acknowledged brief during Town Council hearing. Letter forwarded to KW&SC Chief Engineer.",
+    participantsCount: 14,
+    publishedDate: "2026-09-18",
+    videoClipUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    stageApplicationsOpen: false,
+  },
+  {
+    id: "brief-02",
+    sessionNumber: 2,
+    month: "October 2026",
+    topic: "Gulshan-e-Iqbal Solid Waste Surcharge & Illegal Commercial Dumping Hotspots",
+    slug: "gulshan-solid-waste-hotspots",
+    targetArea: "Gulshan-e-Iqbal Town (UC-7 & UC-8)",
+    dataSummary: "62 active garbage accumulation reports; 58 days average open time for commercial secondary dumps.",
+    problemStatement:
+      "Commercial restaurant alleys along University Road and Disco Bakery dump organic food waste at unassigned street corners overnight, overwhelming local UC street sweepers and creating noxious leachate pools next to primary schools.",
+    rootCauses: [
+      "Absence of night-time SSWMB compactor vehicle rounds behind commercial food streets",
+      "Private informal garbage collectors dumping refuse on vacant civic plots instead of designated GTS",
+      "Zero commercial sanitation fines enforced under Sindh Local Government Act",
+    ],
+    proposedSolution: {
+      title: "Night-Shift Micro-Compactor Routing & Commercial Waste Licensing",
+      estimatedCostPkr: "PKR 2.8 Million",
+      timelineWeeks: 3,
+      description:
+        "UC-7 Secretariat partners with SSWMB to establish a 11:00 PM - 2:00 AM commercial lifting route, funded through nominal PKR 1,500/month trade sanitation fees.",
+    },
+    responsibleBody: "Sindh Solid Waste Management Board (SSWMB) & UC-7 Secretariat",
+    targetOfficialName: "Faisal Siddiqui (Chairman UC-7 Gulshan)",
+    specificAsk:
+      "UC-7 Council to designate 2 sealed containment skips at NIPA and Disco Bakery with biometric check-in for sweepers.",
+    quickWins: [
+      "Resident mohalla committee installs solar floodlights at Disco Bakery dark corner to deter night dumping",
+      "Al-Khidmat volunteer drive clears topsoil refuse and plants 50 Conocarpus shade saplings",
+    ],
+    proposalStatus: "adopted",
+    statusUpdateNote:
+      "Chairman Faisal Siddiqui adopted proposal on platform; night compactor trial scheduled for Oct 5.",
+    participantsCount: 12,
+    publishedDate: "2026-09-22",
+    stageApplicationsOpen: true,
+    upcomingSessionDate: "2026-10-10T17:00:00Z",
+  },
+  {
+    id: "brief-03",
+    sessionNumber: 3,
+    month: "November 2026 (Upcoming)",
+    topic: "Malir River Catchment Flash Flood Preparedness & Storm Culvert Dredging",
+    slug: "malir-catchment-flood-preparedness",
+    targetArea: "District Malir, Saadi Town & Scheme 33",
+    dataSummary: "34 monsoon hazard flags logged during seasonal rain; 8 culverts blocked by illegal debris.",
+    problemStatement:
+      "Unregulated construction rubble dumped into secondary rainwater channels feeding into Malir River creates massive backflow risk during torrential hill torrents, endangering 40,000 residents in Saadi Town and adjoining societies.",
+    rootCauses: [
+      "Secondary stormwater nala narrowed from 40 feet to 14 feet by illegal commercial parking ramps",
+      "Lack of seasonal dredging before summer monsoon cloudbursts",
+      "Missing emergency relief barrier along low-lying sector boundary",
+    ],
+    proposedSolution: {
+      title: "Comprehensive Culvert Channelization & Hydraulic Dredging",
+      estimatedCostPkr: "PKR 6.5 Million",
+      timelineWeeks: 6,
+      description:
+        "Deploy heavy excavators to clear 2.4km natural drainage artery and establish a reinforced gabion flood bund.",
+    },
+    responsibleBody: "KMC Engineering Department & District Commissioner Malir",
+    targetOfficialName: "Jan Muhammad Baloch (Chairman Malir Town)",
+    specificAsk:
+      "Issue Section 144 prohibition against dumping construction rubble within 100 meters of Malir natural drainage paths.",
+    quickWins: [
+      "Community leaders map all 8 blocked culverts with GPS pins for emergency relief squads",
+      "NGO disaster relief fleet pre-positions mobile de-watering pumps in Saadi Town",
+    ],
+    proposalStatus: "sent",
+    statusUpdateNote: "Brief compiled and dispatched to DC Malir and Town Municipal Commissioner.",
+    participantsCount: 16,
+    publishedDate: "2026-09-24",
+    stageApplicationsOpen: true,
+    upcomingSessionDate: "2026-11-04T15:30:00Z",
+  },
+];
+
 

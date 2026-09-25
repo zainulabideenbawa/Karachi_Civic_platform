@@ -18,6 +18,9 @@ import {
   OfficialVerificationClaim,
   JurisdictionDispute,
   CommentRecord,
+  ThinkTankBrief,
+  ProposalTrackerStatus,
+  ThinkTankApplication,
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
@@ -32,6 +35,7 @@ import {
   MOCK_MANAGED_USERS,
   MOCK_OFFICIAL_CLAIMS,
   MOCK_JURISDICTION_DISPUTES,
+  MOCK_THINK_TANK_BRIEFS,
 } from "@/lib/mock-data";
 import {
   supabase,
@@ -187,6 +191,16 @@ interface CivicContextType {
   addCommentToIssue: (issueId: string, body: string, customAuthorName?: string) => void;
   resetDemoData: () => void;
   
+  // Think Tanks & Policy Briefs (Product Spec Section 9)
+  thinkTankBriefs: ThinkTankBrief[];
+  isThinkTankModalOpen: boolean;
+  setIsThinkTankModalOpen: (open: boolean) => void;
+  selectedBrief: ThinkTankBrief | null;
+  setSelectedBrief: (brief: ThinkTankBrief | null) => void;
+  submitStageApplication: (application: Omit<ThinkTankApplication, "id" | "submittedAt" | "status">) => void;
+  updateProposalStatus: (briefId: string, status: ProposalTrackerStatus, note?: string) => void;
+  exportIssuesCSV: (ucId?: string) => void;
+
   // Toasts with Undo
   toast: ToastMessage | null;
   showToast: (text: string, undoAction?: () => void, undoLabel?: string) => void;
@@ -244,6 +258,12 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>(MOCK_MANAGED_USERS);
   const [officialVerificationClaims, setOfficialVerificationClaims] = useState<OfficialVerificationClaim[]>(MOCK_OFFICIAL_CLAIMS);
   const [jurisdictionDisputes, setJurisdictionDisputes] = useState<JurisdictionDispute[]>(MOCK_JURISDICTION_DISPUTES);
+  
+  // Think Tanks & Policy Briefs (Product Spec Section 9)
+  const [thinkTankBriefs, setThinkTankBriefs] = useState<ThinkTankBrief[]>(MOCK_THINK_TANK_BRIEFS);
+  const [isThinkTankModalOpen, setIsThinkTankModalOpen] = useState(false);
+  const [selectedBrief, setSelectedBrief] = useState<ThinkTankBrief | null>(null);
+
   const [hasHydrated, setHasHydrated] = useState<boolean>(false);
 
   const openWorkDoneShare = (issue: Issue) => {
@@ -720,6 +740,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         const found = allUCs.find((u) => u.id === storedUcId);
         if (found) setActiveUC(found);
       }
+      const storedBriefs = localStorage.getItem("karachi_civic_think_tanks_v2");
+      if (storedBriefs) {
+        const parsed = JSON.parse(storedBriefs);
+        if (Array.isArray(parsed) && parsed.length > 0) setThinkTankBriefs(parsed);
+      }
     } catch (e) {
       console.warn("Could not hydrate from localStorage:", e);
     } finally {
@@ -757,6 +782,16 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     }
   }, [allUCs, hasHydrated]);
 
+  // Persist Think Tank Briefs on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_think_tanks_v2", JSON.stringify(thinkTankBriefs));
+    } catch (e) {
+      console.warn("Could not save think tanks to localStorage:", e);
+    }
+  }, [thinkTankBriefs, hasHydrated]);
+
   // Persist active role on change
   useEffect(() => {
     if (!hasHydrated || typeof window === "undefined") return;
@@ -784,16 +819,116 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("karachi_civic_ucs_v2");
       localStorage.removeItem("karachi_civic_role_v2");
       localStorage.removeItem("karachi_civic_uc_id_v2");
+      localStorage.removeItem("karachi_civic_think_tanks_v2");
     }
     setIssues(MOCK_ISSUES);
     setAllTowns(MOCK_TOWNS);
     setAllUCs(MOCK_UCS);
     setActiveRole("citizen");
     setActiveUC(MOCK_UCS[0]);
+    setThinkTankBriefs(MOCK_THINK_TANK_BRIEFS);
     setManagedUsers(MOCK_MANAGED_USERS);
     setOfficialVerificationClaims(MOCK_OFFICIAL_CLAIMS);
     setJurisdictionDisputes(MOCK_JURISDICTION_DISPUTES);
     showToast("Demo data reset to factory initial state!");
+  };
+
+  // Think Tank Stage Application & Proposal Lifecycle
+  const submitStageApplication = (appData: Omit<ThinkTankApplication, "id" | "submittedAt" | "status">) => {
+    const newApp: ThinkTankApplication = {
+      ...appData,
+      id: `stage-app-${Date.now()}`,
+      submittedAt: new Date().toISOString(),
+      status: "pending",
+    };
+    setThinkTankBriefs((prev) =>
+      prev.map((b) => (b.id === appData.briefId ? { ...b, applications: [newApp, ...(b.applications || [])] } : b))
+    );
+    showToast("Application submitted! The Think Tank committee will review within 48h.");
+  };
+
+  const updateProposalStatus = (briefId: string, status: ProposalTrackerStatus, note?: string) => {
+    setThinkTankBriefs((prev) =>
+      prev.map((b) => {
+        if (b.id !== briefId) return b;
+        const newHistory = [
+          {
+            status,
+            date: new Date().toISOString().split("T")[0],
+            actor: activeRole === "admin" ? "Platform Administrator" : "Relevant Municipal Authority",
+            note: note || `Status transitioned to ${status.toUpperCase()} based on civic review.`,
+          },
+          ...(b.statusHistory || []),
+        ];
+        return {
+          ...b,
+          proposalStatus: status,
+          statusUpdateNote: note || b.statusUpdateNote,
+          statusHistory: newHistory,
+        };
+      })
+    );
+    const newLog: AuditLogEntry = {
+      id: `log-tt-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: activeRole === "admin" ? "Platform Admin" : "Executive Desk",
+      action: `Think Tank Policy Status -> ${status.toUpperCase()}`,
+      affectedUcOrOfficial: `Brief ID: ${briefId}`,
+      reason: note || "Tracked policy proposal update",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`Policy proposal status updated to ${status}`);
+  };
+
+  // Section 10.1: Native CSV Export of Issues
+  const exportIssuesCSV = (ucId?: string) => {
+    const listToExport = ucId ? issues.filter((i) => i.ucId === ucId) : issues;
+    if (listToExport.length === 0) {
+      showToast("No issues found to export");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Title",
+      "Category",
+      "Status",
+      "UC ID",
+      "UC Name",
+      "Location / Address",
+      "Severity",
+      "Days Open",
+      "Affected Citizens",
+      "Jurisdiction Agency",
+      "Reported Date",
+      "Is Flagged Dispute"
+    ];
+
+    const rows = listToExport.map((issue) => [
+      `"${issue.id}"`,
+      `"${(issue.title || "").replace(/"/g, '""')}"`,
+      `"${issue.categoryName || issue.categoryId || ""}"`,
+      `"${issue.status || ""}"`,
+      `"${issue.ucId || ""}"`,
+      `"${(issue.ucName || "").replace(/"/g, '""')}"`,
+      `"${(issue.addressApprox || "").replace(/"/g, '""')}"`,
+      `"${issue.severity || ""}"`,
+      `"${issue.daysOpen || 0}"`,
+      `"${issue.affectedCount || 0}"`,
+      `"${issue.jurisdictionFlag?.suggestedBody || "Local UC Municipal"}"`,
+      `"${issue.createdAt || ""}"`,
+      `"${issue.jurisdictionFlag ? "Yes" : "No"}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `karachi_civic_issues_${ucId || "citywide"}_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Exported ${listToExport.length} issues to CSV`);
   };
 
   // Geography & Delimitation Administration Methods
@@ -2003,6 +2138,14 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         deleteUC,
         deleteTown,
         seedStandardKarachiTowns,
+        thinkTankBriefs,
+        isThinkTankModalOpen,
+        setIsThinkTankModalOpen,
+        selectedBrief,
+        setSelectedBrief,
+        submitStageApplication,
+        updateProposalStatus,
+        exportIssuesCSV,
       }}
     >
       {children}
