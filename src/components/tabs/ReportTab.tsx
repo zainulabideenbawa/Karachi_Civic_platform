@@ -363,6 +363,25 @@ export const ReportTab: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto pb-24 min-h-[calc(100vh-8rem)] flex flex-col justify-between animate-in fade-in duration-200">
+      {/* Permanent Native Device Inputs (always mounted in DOM for mobile camera & gallery triggers) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-hidden="true"
+        onChange={handleFileInputChange}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        aria-hidden="true"
+        onChange={handleFileInputChange}
+      />
 
       {/* ================= STEP 1: IN-APP CAMERA ================= */}
       {step === 1 && (
@@ -413,24 +432,6 @@ export const ReportTab: React.FC = () => {
                     {cameraError || "Point at the civic problem. Section 11.0c live capture only."}
                   </p>
                 </div>
-
-                {/* Hidden Native Device Inputs */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                />
 
                 <div className="flex flex-col gap-2.5 pt-2 w-full max-w-xs">
                   {/* Primary 1: Open Native Device Camera */}
