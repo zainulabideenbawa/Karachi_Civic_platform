@@ -84,33 +84,68 @@ export const ReportTab: React.FC = () => {
   // Camera video/stream refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
 
-  // Initialize camera stream
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (step === 1) {
-      if (typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices
-          .getUserMedia({
-            video: { facingMode: "environment" },
-            audio: false,
-          })
-          .then((s) => {
-            stream = s;
-            if (videoRef.current) {
-              videoRef.current.srcObject = s;
-              setCameraActive(true);
-            }
-          })
-          .catch(() => {
-            setCameraActive(false);
-          });
+  // Initialize camera stream with multi-camera fallback
+  const startCamera = async () => {
+    setIsStartingCamera(true);
+    setCameraError(null);
+
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ) {
+      setCameraError("Camera is not supported on this browser");
+      setIsStartingCamera(false);
+      return;
+    }
+
+    try {
+      let stream: MediaStream | null = null;
+      // 1. First attempt: ideal mobile back camera (environment)
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+          audio: false,
+        });
+      } catch {
+        // 2. Fallback attempt: any available webcam / camera
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
       }
+
+      if (stream && videoRef.current) {
+        videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+        } catch {
+          // Play safely handled
+        }
+        setCameraActive(true);
+        setCameraError(null);
+      }
+    } catch (err: unknown) {
+      console.warn("Camera request error:", err);
+      setCameraActive(false);
+      setCameraError("Camera permission needed. Tap 'Allow Camera' to start.");
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step === 1) {
+      startCamera();
     }
 
     return () => {
-      if (stream) {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
       }
     };
@@ -317,16 +352,36 @@ export const ReportTab: React.FC = () => {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-300 bg-slate-900">
-                <div className="w-20 h-20 rounded-full border-2 border-teal-500/50 flex items-center justify-center mb-3 animate-pulse">
-                  <Camera className="w-10 h-10 text-teal-400" />
+              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-300 bg-slate-900 space-y-3">
+                <div className="w-16 h-16 rounded-full bg-teal-950/80 border border-teal-500/40 flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-teal-400" />
                 </div>
-                <h3 className="font-bold text-sm text-white">Live Camera Active</h3>
-                <p className="text-xs text-slate-400 max-w-xs mt-1">
-                  Point at the civic problem (pothole, garbage, sewer, light). No gallery uploads allowed.
-                </p>
-                <div className="mt-3 px-3 py-1 rounded-full bg-teal-950 text-teal-300 text-[11px] font-mono border border-teal-800">
-                  Target: {activeUC.name}
+                <div>
+                  <h3 className="font-bold text-sm text-white">Live Camera Proof</h3>
+                  <p className="text-xs text-slate-400 max-w-xs mt-1">
+                    {cameraError || "Point at the civic problem. Section 11.0c live capture only."}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 w-full max-w-xs">
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    disabled={isStartingCamera}
+                    className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{isStartingCamera ? "Starting Camera..." : "Turn On Camera"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCapture}
+                    disabled={capturedPhotos.length >= 3}
+                    className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-teal-200 border border-teal-500/30 font-semibold text-xs transition cursor-pointer"
+                  >
+                    + Add Sample Angle
+                  </button>
                 </div>
               </div>
             )}
@@ -604,9 +659,9 @@ export const ReportTab: React.FC = () => {
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                   ✓ {compressedSizeKb} KB WebP (&lt;200KB)
                 </span>
-                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
                   <UploadCloud className="w-3 h-3 text-teal-600" />
-                  <span>R2: civickarachi</span>
+                  <span>Encrypted Storage</span>
                 </span>
               </div>
             </div>
@@ -670,7 +725,10 @@ export const ReportTab: React.FC = () => {
             className="w-full py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-lg shadow-teal-700/25 transition cursor-pointer flex items-center justify-center gap-2"
           >
             {isUploadingToR2 ? (
-              <span>Uploading to Cloudflare R2...</span>
+              <span className="flex items-center gap-2">
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Uploading photos &amp; submitting report...</span>
+              </span>
             ) : (
               <span>Submit Verified Civic Report</span>
             )}

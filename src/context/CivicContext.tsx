@@ -516,6 +516,41 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
     setIssues((prev) => [fullIssue, ...prev]);
 
+    // Immediately update UC totals and score for Chairman & Official Dashboard
+    setAllUCs((prev) =>
+      prev.map((uc) => {
+        if (uc.id === fullIssue.ucId) {
+          const updatedTotal = uc.totalEligibleIssues + 1;
+          const updatedScore = Math.max(
+            0,
+            Math.min(100, uc.score - (fullIssue.severity === "dangerous" ? 0.8 : 0.4))
+          );
+          return {
+            ...uc,
+            totalEligibleIssues: updatedTotal,
+            score: Number(updatedScore.toFixed(1)),
+          };
+        }
+        return uc;
+      })
+    );
+
+    setActiveUC((current) => {
+      if (current.id === fullIssue.ucId) {
+        return {
+          ...current,
+          totalEligibleIssues: current.totalEligibleIssues + 1,
+          score: Number(
+            Math.max(
+              0,
+              Math.min(100, current.score - (fullIssue.severity === "dangerous" ? 0.8 : 0.4))
+            ).toFixed(1)
+          ),
+        };
+      }
+      return current;
+    });
+
     // Persist to Supabase asynchronously
     (async () => {
       try {
