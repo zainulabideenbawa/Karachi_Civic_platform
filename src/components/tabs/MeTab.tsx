@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useCivic } from "@/context/CivicContext";
 import {
   UserCheck,
@@ -35,6 +35,7 @@ export const MeTab: React.FC = () => {
 
   const myReports = issues.filter((i) => i.reporterId === "user-101");
   const myRsvps = events.filter((e) => e.isUserRsvpd);
+  const [showPWAInstructions, setShowPWAInstructions] = useState(false);
 
   return (
     <div className="space-y-4 pb-20 animate-in fade-in duration-200">
@@ -218,25 +219,61 @@ export const MeTab: React.FC = () => {
           </span>
         </div>
 
-        {/* PWA Offline / Install Prompt */}
-        <div className="p-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Download className="w-4 h-4 text-teal-600" />
-            <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                Install as Mobile App (PWA)
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Fast offline access, camera capture, push alerts
+        {/* PWA Offline / Install Prompt (Section 11.8) */}
+        <div className="p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Download className="w-4 h-4 text-teal-600" />
+              <div>
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Install as Mobile App (PWA)
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Fast offline access, camera capture, push alerts
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => setShowPWAInstructions(!showPWAInstructions)}
+              className="px-3 py-1 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
+            >
+              {showPWAInstructions ? "Hide Guide" : "Install Guide"}
+            </button>
           </div>
-          <button
-            onClick={() => showToast("Add to Home Screen banner triggered")}
-            className="px-3 py-1 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
-          >
-            Install
-          </button>
+
+          {showPWAInstructions && (
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-teal-500/30 text-xs space-y-3 animate-in fade-in duration-150">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* iOS Instructions */}
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>🍏 iPhone (Safari)</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
+                    <li>Tap the <strong>Share</strong> button (box with up arrow) in Safari.</li>
+                    <li>Scroll down and tap <strong>&ldquo;Add to Home Screen&rdquo;</strong>.</li>
+                    <li>Tap <strong>Add</strong> to get instant camera and push notifications.</li>
+                  </ol>
+                </div>
+
+                {/* Android Instructions */}
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>🤖 Android (Chrome)</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
+                    <li>Tap the <strong>three dots menu (⋮)</strong> in Chrome.</li>
+                    <li>Select <strong>&ldquo;Install app&rdquo;</strong> or <strong>&ldquo;Add to Home screen&rdquo;</strong>.</li>
+                    <li>Full offline reporting and GPS work automatically.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-teal-700 dark:text-teal-300 font-semibold bg-teal-50 dark:bg-teal-950/60 p-2 rounded-md">
+                💡 Tip: Once installed, login sessions persist for 180 days with automatic offline queueing when mobile data is weak.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Testing Role Status */}

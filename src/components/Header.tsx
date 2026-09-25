@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useCivic } from "@/context/CivicContext";
-import { MapPin, Search, ChevronDown, Check, UserCheck, Shield, Building2 } from "lucide-react";
+import { MapPin, Search, ChevronDown, Check, UserCheck, Shield, Building2, HelpCircle } from "lucide-react";
 import { UserRole } from "@/types/civic";
 
 export const Header: React.FC = () => {
@@ -16,6 +16,7 @@ export const Header: React.FC = () => {
     setLanguage,
     setIsSearchOpen,
     setIsFindMyUCOpen,
+    setIsOnboardingOpen,
     setIsOfficialDashboardOpen,
     setIsAdminConsoleOpen,
     showToast,
@@ -105,8 +106,19 @@ export const Header: React.FC = () => {
             onClick={() => setIsSearchOpen(true)}
             className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             aria-label="Search"
+            title="Search UCs, Landmarks, Issues (W6)"
           >
             <Search className="w-4 h-4" />
+          </button>
+
+          {/* How It Works / Onboarding Trigger (Section 11.3) */}
+          <button
+            onClick={() => setIsOnboardingOpen(true)}
+            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            aria-label="How It Works"
+            title="How It Works (60-sec Guide)"
+          >
+            <HelpCircle className="w-4 h-4 text-teal-600" />
           </button>
 
           {/* Role Preview Switcher */}

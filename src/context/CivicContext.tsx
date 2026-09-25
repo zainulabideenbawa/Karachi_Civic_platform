@@ -96,10 +96,18 @@ interface CivicContextType {
   setIsIdeasModalOpen: (open: boolean) => void;
   isFindMyUCOpen: boolean;
   setIsFindMyUCOpen: (open: boolean) => void;
+  isOnboardingOpen: boolean;
+  setIsOnboardingOpen: (open: boolean) => void;
   
   // Actions
   toggleAffected: (issueId: string) => void;
-  voteConfirmation: (issueId: string, vote: "fixed" | "not_fixed", reason?: string) => void;
+  voteConfirmation: (
+    issueId: string,
+    vote: "fixed" | "not_fixed",
+    reason?: string,
+    rating?: number,
+    sayThanks?: boolean
+  ) => void;
   addNewIssue: (newIssue: Omit<Issue, "id" | "createdAt" | "updatedAt" | "daysOpen" | "affectedCount" | "weightedAffected">) => string;
   addOfficialResponse: (issueId: string, message: string, statusUpdate: Issue["status"]) => void;
   officialMarkResolved: (issueId: string, afterPhotoUrl: string, note: string) => void;
@@ -158,10 +166,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isBecomeLeaderOpen, setIsBecomeLeaderOpen] = useState(false);
   const [isLeaderDashboardOpen, setIsLeaderDashboardOpen] = useState(false);
 
-  // UC Ideas Board (Workflow W7) & Find My UC (Workflow W1)
+  // UC Ideas Board (Workflow W7) & Find My UC (Workflow W1) & Onboarding (Section 11.3)
   const [ideas, setIdeas] = useState<UCIdea[]>(MOCK_IDEAS);
   const [isIdeasModalOpen, setIsIdeasModalOpen] = useState(false);
   const [isFindMyUCOpen, setIsFindMyUCOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   // Sync with Supabase on mount
   useEffect(() => {
@@ -322,11 +331,13 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Vote on confirmation window (Fixed vs Not Fixed)
+  // Vote on confirmation window (Fixed vs Not Fixed, with Rating & Thank You - Section 11.9 W5)
   const voteConfirmation = (
     issueId: string,
     vote: "fixed" | "not_fixed",
-    reason?: string
+    reason?: string,
+    rating?: number,
+    sayThanks?: boolean
   ) => {
     setIssues((prev) =>
       prev.map((iss) => {
@@ -384,11 +395,13 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     // Persist to Supabase RPC
     recordConfirmationVote(issueId, "user-101", vote, reason);
 
-    showToast(
-      vote === "fixed"
-        ? "Confirmed! Thank you for verifying the municipal fix."
-        : `Issue marked as Not Fixed (${reason || "unresolved"}). Sent back to official queue.`
-    );
+    if (vote === "fixed") {
+      const thanksMsg = sayThanks ? " and sent a public Thank You!" : "";
+      const ratingMsg = rating ? ` Rated ${rating}★` : "";
+      showToast(`Confirmed!${ratingMsg}${thanksMsg} Thank you for holding officials accountable.`);
+    } else {
+      showToast(`Marked as Not Fixed (${reason || "unresolved"}). Sent back to official queue.`);
+    }
   };
 
   // Submit new issue
@@ -963,6 +976,8 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setIsIdeasModalOpen,
         isFindMyUCOpen,
         setIsFindMyUCOpen,
+        isOnboardingOpen,
+        setIsOnboardingOpen,
         toggleAffected,
         voteConfirmation,
         addNewIssue,
