@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useCivic } from "@/context/CivicContext";
-import { Search, X, MapPin, Building2, FileText, ArrowRight } from "lucide-react";
+import { Search, X, MapPin, Building2, FileText, ArrowRight, Award, ShieldCheck } from "lucide-react";
+import { MOCK_NGOS } from "@/lib/mock-data";
 
 export const SearchModal: React.FC = () => {
   const {
@@ -10,6 +11,10 @@ export const SearchModal: React.FC = () => {
     setIsSearchOpen,
     allUCs,
     issues,
+    communityLeaders,
+    setSelectedLeader,
+    setIsLeaderProfileOpen,
+    setIsNGOsModalOpen,
     setActiveUC,
     setSelectedIssue,
     setActiveTab,
@@ -38,6 +43,25 @@ export const SearchModal: React.FC = () => {
           iss.title.toLowerCase().includes(trimmed) ||
           iss.categoryName.toLowerCase().includes(trimmed) ||
           iss.addressApprox.toLowerCase().includes(trimmed)
+      )
+    : [];
+
+  const matchingLeaders = trimmed
+    ? communityLeaders.filter(
+        (lead) =>
+          lead.realName.toLowerCase().includes(trimmed) ||
+          lead.party.toLowerCase().includes(trimmed) ||
+          lead.ucName.toLowerCase().includes(trimmed) ||
+          lead.bio.toLowerCase().includes(trimmed)
+      )
+    : [];
+
+  const matchingNGOs = trimmed
+    ? MOCK_NGOS.filter(
+        (ngo) =>
+          ngo.name.toLowerCase().includes(trimmed) ||
+          ngo.focusCategories.some((cat) => cat.toLowerCase().includes(trimmed)) ||
+          ngo.activeTowns.some((t) => t.toLowerCase().includes(trimmed))
       )
     : [];
 
@@ -158,9 +182,85 @@ export const SearchModal: React.FC = () => {
             </div>
           )}
 
-          {trimmed && matchingUcs.length === 0 && matchingIssues.length === 0 && (
+          {/* Community Leaders Results */}
+          {matchingLeaders.length > 0 && (
+            <div className="space-y-1 pt-2">
+              <div className="text-[10px] font-bold uppercase text-indigo-400 px-2 flex items-center gap-1">
+                <Award className="w-3 h-3" />
+                <span>Community Leaders ({matchingLeaders.length})</span>
+              </div>
+              {matchingLeaders.map((lead) => (
+                <button
+                  key={lead.id}
+                  onClick={() => {
+                    setSelectedLeader(lead);
+                    setIsSearchOpen(false);
+                    setIsLeaderProfileOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 text-left transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={lead.photoUrl}
+                      alt={lead.realName}
+                      className="w-7 h-7 rounded-lg object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1">
+                        <span>{lead.realName}</span>
+                        {lead.identityVerified && <ShieldCheck className="w-3 h-3 text-emerald-500 shrink-0" />}
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate">
+                        {lead.ucName} • Score: {lead.score} • {lead.party}
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* NGO Results */}
+          {matchingNGOs.length > 0 && (
+            <div className="space-y-1 pt-2">
+              <div className="text-[10px] font-bold uppercase text-teal-400 px-2 flex items-center gap-1">
+                <Building2 className="w-3 h-3" />
+                <span>NGOs &amp; Civil Society ({matchingNGOs.length})</span>
+              </div>
+              {matchingNGOs.map((ngo) => (
+                <button
+                  key={ngo.id}
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    setIsNGOsModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-teal-50/50 dark:hover:bg-teal-950/40 text-left transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={ngo.logo}
+                      alt={ngo.name}
+                      className="w-7 h-7 rounded-lg object-cover shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {ngo.name}
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate">
+                        Focus: {ngo.focusCategories.join(", ")} • {ngo.activeTowns[0]}
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {trimmed && matchingUcs.length === 0 && matchingIssues.length === 0 && matchingLeaders.length === 0 && matchingNGOs.length === 0 && (
             <div className="p-8 text-center text-xs text-slate-400">
-              No matching UCs, landmarks or issues found for &quot;{query}&quot;
+              No matching UCs, landmarks, leaders, or issues found for &quot;{query}&quot;
             </div>
           )}
         </div>

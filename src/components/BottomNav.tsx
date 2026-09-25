@@ -5,14 +5,35 @@ import { useCivic, NavTab } from "@/context/CivicContext";
 import { Home, Map, Plus, Trophy, User } from "lucide-react";
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab } = useCivic();
+  const { activeTab, setActiveTab, language } = useCivic();
 
-  const navItems: { tab: NavTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { tab: "my-uc", label: "My UC", icon: Home },
-    { tab: "map", label: "Map", icon: Map },
-    { tab: "rankings", label: "Rankings", icon: Trophy },
-    { tab: "me", label: "Me", icon: User },
-  ];
+  const getNavLabel = (tab: NavTab) => {
+    if (language === "ur") {
+      switch (tab) {
+        case "my-uc": return "میری یو سی";
+        case "map": return "نقشہ";
+        case "report": return "رپورٹ";
+        case "rankings": return "رینکنگ";
+        case "me": return "میں";
+      }
+    }
+    if (language === "ur_roman") {
+      switch (tab) {
+        case "my-uc": return "Meri UC";
+        case "map": return "Naksha";
+        case "report": return "Report";
+        case "rankings": return "Ranking";
+        case "me": return "Main";
+      }
+    }
+    switch (tab) {
+      case "my-uc": return "My UC";
+      case "map": return "Map";
+      case "report": return "Report";
+      case "rankings": return "Rankings";
+      case "me": return "Me";
+    }
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe transition-colors">
@@ -27,7 +48,7 @@ export const BottomNav: React.FC = () => {
           }`}
         >
           <Home className={`w-5 h-5 ${activeTab === "my-uc" ? "stroke-[2.4]" : "stroke-[1.8]"}`} />
-          <span className="text-[10px] mt-1">{navItems[0].label}</span>
+          <span className="text-[10px] mt-1">{getNavLabel("my-uc")}</span>
         </button>
 
         {/* Tab 2: Map */}
@@ -40,7 +61,7 @@ export const BottomNav: React.FC = () => {
           }`}
         >
           <Map className={`w-5 h-5 ${activeTab === "map" ? "stroke-[2.4]" : "stroke-[1.8]"}`} />
-          <span className="text-[10px] mt-1">{navItems[1].label}</span>
+          <span className="text-[10px] mt-1">{getNavLabel("map")}</span>
         </button>
 
         {/* Tab 3 (Centre): Floating Report Button */}
@@ -53,7 +74,7 @@ export const BottomNav: React.FC = () => {
             <Plus className="w-7 h-7 stroke-[2.5] group-hover:rotate-90 transition-transform duration-300" />
           </button>
           <span className="text-[10px] font-bold text-teal-800 dark:text-teal-400 mt-0.5 tracking-tight">
-            Report
+            {getNavLabel("report")}
           </span>
         </div>
 
@@ -67,7 +88,7 @@ export const BottomNav: React.FC = () => {
           }`}
         >
           <Trophy className={`w-5 h-5 ${activeTab === "rankings" ? "stroke-[2.4]" : "stroke-[1.8]"}`} />
-          <span className="text-[10px] mt-1">{navItems[2].label}</span>
+          <span className="text-[10px] mt-1">{getNavLabel("rankings")}</span>
         </button>
 
         {/* Tab 5: Me */}
@@ -80,7 +101,7 @@ export const BottomNav: React.FC = () => {
           }`}
         >
           <User className={`w-5 h-5 ${activeTab === "me" ? "stroke-[2.4]" : "stroke-[1.8]"}`} />
-          <span className="text-[10px] mt-1">{navItems[3].label}</span>
+          <span className="text-[10px] mt-1">{getNavLabel("me")}</span>
         </button>
       </div>
     </nav>

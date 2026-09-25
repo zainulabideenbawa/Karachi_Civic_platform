@@ -33,6 +33,8 @@ export const MyUCTab: React.FC = () => {
     setSelectedLeader,
     setIsLeaderProfileOpen,
     setIsBecomeLeaderOpen,
+    setIsIdeasModalOpen,
+    checkInEvent,
     setSelectedIssue,
     setIsScoreFormulaOpen,
     setIsPollsModalOpen,
@@ -278,7 +280,7 @@ export const MyUCTab: React.FC = () => {
       {/* 2. Quick Action Buttons: Suggest Idea, UC Polls, & NGOs/NO-GOs */}
       <section className="grid grid-cols-3 gap-2">
         <button
-          onClick={() => showToast("Idea submitted for UC-7 community review!")}
+          onClick={() => setIsIdeasModalOpen(true)}
           className="flex flex-col items-start p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 transition cursor-pointer text-left shadow-xs"
         >
           <div className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 shrink-0 mb-1.5">
@@ -436,6 +438,14 @@ export const MyUCTab: React.FC = () => {
                     >
                       {ev.isUserRsvpd ? "✓ Attending" : "I'll Join"}
                     </button>
+                    {ev.isUserRsvpd && (
+                      <button
+                        onClick={() => checkInEvent(ev.id)}
+                        className="w-full py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 cursor-pointer transition text-center"
+                      >
+                        📍 Check In (GPS)
+                      </button>
+                    )}
                     {(ev.type === "uc_baithak" || ev.type === "town_hall") && (
                       <button
                         onClick={() => {

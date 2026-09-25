@@ -319,3 +319,26 @@ export interface PanelApplication {
   submittedAt: string;
   status: "submitted" | "shortlisted" | "confirmed";
 }
+
+export interface UCIdea {
+  id: string;
+  ucId: string;
+  ucName: string;
+  title: string;
+  description: string;
+  category: string;
+  authorName: string;
+  authorRole: string;
+  upvotes: number;
+  userUpvoted?: boolean;
+  createdAt: string;
+  status: "under_review" | "planned" | "not_possible" | "done";
+  officialReply?: {
+    officialName: string;
+    seatTitle: string;
+    message: string;
+    repliedAt: string;
+  };
+  isInThinkTankPool?: boolean;
+}
+

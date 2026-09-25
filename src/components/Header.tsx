@@ -15,6 +15,7 @@ export const Header: React.FC = () => {
     language,
     setLanguage,
     setIsSearchOpen,
+    setIsFindMyUCOpen,
     setIsOfficialDashboardOpen,
     setIsAdminConsoleOpen,
     showToast,
@@ -81,18 +82,16 @@ export const Header: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-2 mt-1 border-t border-slate-100 dark:border-slate-800 space-y-1">
                 <button
                   onClick={() => {
-                    // Auto detect simulation
-                    const detected = allUCs[0];
-                    setActiveUC(detected);
                     setIsUcMenuOpen(false);
-                    showToast("GPS auto-detected: UC-7 Gulshan (NIPA)");
+                    setIsFindMyUCOpen(true);
                   }}
-                  className="w-full text-center py-1.5 text-xs font-medium text-teal-700 dark:text-teal-400 hover:underline"
+                  className="w-full text-center py-1.5 text-xs font-bold text-teal-700 dark:text-teal-400 hover:underline flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  📍 Use my GPS Location
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Find My UC (GPS &amp; Landmark Lookup)</span>
                 </button>
               </div>
             </div>

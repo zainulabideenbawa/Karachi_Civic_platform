@@ -11,12 +11,14 @@ import {
   PromiseRecord,
   Town,
   UC,
+  UCIdea,
   UserRole,
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
   MOCK_COMMUNITY_LEADERS,
   MOCK_EVENTS,
+  MOCK_IDEAS,
   MOCK_ISSUES,
   MOCK_POLLS,
   MOCK_PROMISES,
@@ -88,6 +90,13 @@ interface CivicContextType {
   isLeaderDashboardOpen: boolean;
   setIsLeaderDashboardOpen: (open: boolean) => void;
   
+  // UC Ideas Board (Workflow W7) & Find My UC (Workflow W1)
+  ideas: UCIdea[];
+  isIdeasModalOpen: boolean;
+  setIsIdeasModalOpen: (open: boolean) => void;
+  isFindMyUCOpen: boolean;
+  setIsFindMyUCOpen: (open: boolean) => void;
+  
   // Actions
   toggleAffected: (issueId: string) => void;
   voteConfirmation: (issueId: string, vote: "fixed" | "not_fixed", reason?: string) => void;
@@ -96,7 +105,10 @@ interface CivicContextType {
   officialMarkResolved: (issueId: string, afterPhotoUrl: string, note: string) => void;
   flagJurisdiction: (issueId: string, targetBody: string, reason: string) => void;
   rsvpEvent: (eventId: string) => void;
+  checkInEvent: (eventId: string) => void;
   votePoll: (pollId: string, optionId: string) => void;
+  upvoteIdea: (ideaId: string) => void;
+  submitIdea: (data: { title: string; description: string; category: string }) => void;
   adoptIssue: (issueId: string, adopterType: "leader" | "ngo", adopterId: string, adopterName: string, targetDays: number) => { success: boolean; message: string };
   resolveAdoptedIssue: (issueId: string, afterPhotoUrl: string, note: string) => { success: boolean; message: string };
   applyBecomeLeader: (data: { realName: string; photoUrl: string; bio: string; whyServe: string; party: string; plansToContest: "yes" | "no" | "prefer_not_to_say"; ucId: string }) => void;
@@ -145,6 +157,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isLeaderProfileOpen, setIsLeaderProfileOpen] = useState(false);
   const [isBecomeLeaderOpen, setIsBecomeLeaderOpen] = useState(false);
   const [isLeaderDashboardOpen, setIsLeaderDashboardOpen] = useState(false);
+
+  // UC Ideas Board (Workflow W7) & Find My UC (Workflow W1)
+  const [ideas, setIdeas] = useState<UCIdea[]>(MOCK_IDEAS);
+  const [isIdeasModalOpen, setIsIdeasModalOpen] = useState(false);
+  const [isFindMyUCOpen, setIsFindMyUCOpen] = useState(false);
 
   // Sync with Supabase on mount
   useEffect(() => {
@@ -637,6 +654,61 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     showToast("Your vote has been counted anonymously!");
   };
 
+  // Event Check-In (Workflow W8)
+  const checkInEvent = (eventId: string) => {
+    setEvents((prev) =>
+      prev.map((ev) => {
+        if (ev.id === eventId) {
+          return {
+            ...ev,
+            isUserRsvpd: true,
+            rsvpCount: ev.isUserRsvpd ? ev.rsvpCount : ev.rsvpCount + 1,
+          };
+        }
+        return ev;
+      })
+    );
+    showToast("✓ Checked in at event location! Verified attendance recorded.");
+  };
+
+  // UC Ideas Board Actions (Workflow W7)
+  const upvoteIdea = (ideaId: string) => {
+    setIdeas((prev) =>
+      prev.map((idea) => {
+        if (idea.id === ideaId) {
+          const isCurrently = !!idea.userUpvoted;
+          return {
+            ...idea,
+            userUpvoted: !isCurrently,
+            upvotes: isCurrently ? idea.upvotes - 1 : idea.upvotes + 1,
+          };
+        }
+        return idea;
+      })
+    );
+    showToast("Idea upvote updated! Verified resident weight applied.");
+  };
+
+  const submitIdea = (data: { title: string; description: string; category: string }) => {
+    const newIdea: UCIdea = {
+      id: `idea-${Date.now()}`,
+      ucId: activeUC.id,
+      ucName: activeUC.name,
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      authorName: "Zain Bawa",
+      authorRole: "Verified Resident",
+      upvotes: 1,
+      userUpvoted: true,
+      createdAt: new Date().toISOString(),
+      status: "under_review",
+      isInThinkTankPool: false,
+    };
+    setIdeas((prev) => [newIdea, ...prev]);
+    showToast("Idea submitted to UC Ideas Board! Neighbors can now review and upvote.");
+  };
+
   // Community Leader Actions (Spec Addendum 01)
   const adoptIssue = (
     issueId: string,
@@ -886,6 +958,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setIsBecomeLeaderOpen,
         isLeaderDashboardOpen,
         setIsLeaderDashboardOpen,
+        ideas,
+        isIdeasModalOpen,
+        setIsIdeasModalOpen,
+        isFindMyUCOpen,
+        setIsFindMyUCOpen,
         toggleAffected,
         voteConfirmation,
         addNewIssue,
@@ -893,7 +970,10 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         officialMarkResolved,
         flagJurisdiction,
         rsvpEvent,
+        checkInEvent,
         votePoll,
+        upvoteIdea,
+        submitIdea,
         adoptIssue,
         resolveAdoptedIssue,
         applyBecomeLeader,

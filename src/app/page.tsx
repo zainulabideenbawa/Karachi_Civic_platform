@@ -23,6 +23,8 @@ import { BaithakPanelModal } from "@/components/modals/BaithakPanelModal";
 import { LeaderProfileModal } from "@/components/modals/LeaderProfileModal";
 import { BecomeLeaderModal } from "@/components/modals/BecomeLeaderModal";
 import { LeaderDashboardModal } from "@/components/dashboards/LeaderDashboardModal";
+import { UCIdeasBoardModal } from "@/components/modals/UCIdeasBoardModal";
+import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
@@ -63,6 +65,8 @@ function CivicAppContent() {
       <LeaderProfileModal />
       <BecomeLeaderModal />
       <LeaderDashboardModal />
+      <UCIdeasBoardModal />
+      <FindMyUCModal />
     </div>
   );
 }
