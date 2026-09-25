@@ -7,6 +7,7 @@ import {
   CommunityLeader,
   Issue,
   Language,
+  Official,
   PollRecord,
   PromiseRecord,
   Town,
@@ -60,6 +61,8 @@ interface CivicContextType {
   // Modals & Navigation States
   selectedIssue: Issue | null;
   setSelectedIssue: (issue: Issue | null) => void;
+  selectedOfficial: Official | null;
+  setSelectedOfficial: (official: Official | null) => void;
   isWhatsAppAuthOpen: boolean;
   setIsWhatsAppAuthOpen: (open: boolean) => void;
   isScoreFormulaOpen: boolean;
@@ -127,6 +130,7 @@ interface CivicContextType {
   showToast: (text: string, undoAction?: () => void, undoLabel?: string) => void;
   dismissToast: () => void;
   offlineQueueCount: number;
+  isOnline: boolean;
 }
 
 const CivicContext = createContext<CivicContextType | undefined>(undefined);
@@ -146,6 +150,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>("en");
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [selectedOfficial, setSelectedOfficial] = useState<Official | null>(null);
   const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(false);
   const [isScoreFormulaOpen, setIsScoreFormulaOpen] = useState(false);
   const [isOfficialDashboardOpen, setIsOfficialDashboardOpen] = useState(false);
@@ -158,6 +163,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [offlineQueueCount] = useState(0);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
 
   // Community Leaders (Spec Addendum 01)
   const [communityLeaders, setCommunityLeaders] = useState<CommunityLeader[]>(MOCK_COMMUNITY_LEADERS);
@@ -264,6 +270,91 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
     loadFromSupabase();
   }, []);
+
+  // Browser online/offline event listener (Section 11.6)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => {
+      setIsOnline(true);
+      showToast("Connected: Real-time civic network online");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      showToast("Offline: Reports and confirmations queued locally");
+    };
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Deep linking URL hydration on mount (Section 11.0 Rule 12 & Section 12.2)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const issueParam = params.get("issue");
+      const ucParam = params.get("uc");
+      const officialParam = params.get("official");
+      const leaderParam = params.get("leader");
+      const tabParam = params.get("tab");
+
+      if (issueParam) {
+        const found = issues.find((i) => i.id.toLowerCase() === issueParam.toLowerCase());
+        if (found) setSelectedIssue(found);
+      }
+      if (ucParam) {
+        const foundUC = allUCs.find(
+          (u) => u.id.toLowerCase() === ucParam.toLowerCase() || u.slug.toLowerCase() === ucParam.toLowerCase()
+        );
+        if (foundUC) setActiveUC(foundUC);
+      }
+      if (officialParam) {
+        const foundOff = allUCs.map((u) => u.chairman).find(
+          (c) => c.id.toLowerCase() === officialParam.toLowerCase() || c.slug.toLowerCase() === officialParam.toLowerCase()
+        );
+        if (foundOff) setSelectedOfficial(foundOff);
+      }
+      if (leaderParam) {
+        const foundL = communityLeaders.find(
+          (l) => l.id.toLowerCase() === leaderParam.toLowerCase() || l.slug.toLowerCase() === leaderParam.toLowerCase()
+        );
+        if (foundL) {
+          setSelectedLeader(foundL);
+          setIsLeaderProfileOpen(true);
+        }
+      }
+      if (tabParam && ["my-uc", "map", "report", "rankings", "me"].includes(tabParam)) {
+        setActiveTab(tabParam as NavTab);
+      }
+    } catch (e) {
+      console.warn("Deep linking hydration error:", e);
+    }
+  }, [issues, allUCs, communityLeaders]);
+
+  // URL search param sync when modal opens/closes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (selectedIssue) {
+        url.searchParams.set("issue", selectedIssue.id);
+      } else {
+        url.searchParams.delete("issue");
+      }
+      if (selectedOfficial) {
+        url.searchParams.set("official", selectedOfficial.id);
+      } else {
+        url.searchParams.delete("official");
+      }
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      // fallback safe
+    }
+  }, [selectedIssue, selectedOfficial]);
 
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {
@@ -997,6 +1088,9 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         showToast,
         dismissToast,
         offlineQueueCount,
+        selectedOfficial,
+        setSelectedOfficial,
+        isOnline,
       }}
     >
       {children}

@@ -42,6 +42,7 @@ export const MyUCTab: React.FC = () => {
     setIsBaithakPanelModalOpen,
     setSelectedEventForPanel,
     rsvpEvent,
+    setSelectedOfficial,
     showToast,
   } = useCivic();
 
@@ -90,8 +91,12 @@ export const MyUCTab: React.FC = () => {
         {/* Main Official Info Row */}
         <div className="flex items-center justify-between gap-3">
           {/* Avatar and Name */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 shadow-xs">
+          <div
+            onClick={() => setSelectedOfficial(activeUC.chairman)}
+            className="flex items-center gap-3 min-w-0 cursor-pointer group"
+            title="Click to view Official Report Card (Section 7.1)"
+          >
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 shadow-xs group-hover:ring-2 group-hover:ring-teal-500 transition">
               <Image
                 src={activeUC.chairman.photo}
                 alt={activeUC.chairman.name}
@@ -111,14 +116,15 @@ export const MyUCTab: React.FC = () => {
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight truncate">
-                {activeUC.chairman.name}
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-teal-700 dark:group-hover:text-teal-400 transition flex items-center gap-1">
+                <span>{activeUC.chairman.name}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition" />
               </h1>
               <p className="text-xs text-slate-500 font-medium truncate pt-0.5">
                 {activeUC.chairman.seatTitle}
               </p>
               <p className="text-[11px] text-slate-400 font-medium truncate">
-                Party: <span className="text-slate-700 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span>
+                Party: <span className="text-slate-700 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span> · <span className="text-teal-700 dark:text-teal-400 font-bold">Report Card ↗</span>
               </p>
             </div>
           </div>

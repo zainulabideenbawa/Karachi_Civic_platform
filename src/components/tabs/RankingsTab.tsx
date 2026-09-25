@@ -29,6 +29,7 @@ export const RankingsTab: React.FC = () => {
     setSelectedLeader,
     setIsLeaderProfileOpen,
     setIsBecomeLeaderOpen,
+    setSelectedOfficial,
     showToast,
   } = useCivic();
 
@@ -226,7 +227,15 @@ export const RankingsTab: React.FC = () => {
                   </div>
 
                   {/* Chairman Avatar */}
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveUC(uc);
+                      setSelectedOfficial(uc.chairman);
+                    }}
+                    className="relative w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0 hover:ring-2 hover:ring-teal-500 transition cursor-pointer"
+                    title="View official report card"
+                  >
                     <Image
                       src={uc.chairman.photo}
                       alt={uc.chairman.name}

@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { Issue } from "@/types/civic";
 import { StatusPill } from "./StatusPill";
-import { Users, AlertTriangle, MessageSquare, Clock, MapPin } from "lucide-react";
+import { Users, AlertTriangle, MessageSquare, Clock, MapPin, Camera } from "lucide-react";
 
 interface IssueCardProps {
   issue: Issue;
@@ -58,11 +58,17 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
           </div>
         )}
 
-        {/* Category Pill Overlaid at bottom */}
-        <div className="absolute bottom-2.5 left-2.5">
+        {/* Category Pill & Multi-Photo Pill Overlaid at bottom */}
+        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
           <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 shadow-xs backdrop-blur-xs">
             {issue.categoryName}
           </span>
+          {issue.photos.length > 1 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/75 text-white backdrop-blur-xs shadow-xs">
+              <Camera className="w-3 h-3 text-teal-400" />
+              <span>{issue.photos.length} angles</span>
+            </span>
+          )}
         </div>
 
         {/* Affected Counter on bottom right */}

@@ -613,7 +613,7 @@ export const IssueDetailModal: React.FC = () => {
                 {/* WhatsApp */}
                 <a
                   href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                    `🚨 *Karachi Civic Alert* (${selectedIssue.ucName})\n"${selectedIssue.title}" has been open for *${selectedIssue.daysOpen} days* with ${selectedIssue.affectedCount} residents affected.\n\nResponsible: ${activeUC.chairman.name} (${activeUC.chairman.seatTitle})\nTrack on Karachi Civic: https://karachicivic.org/issue/${selectedIssue.id}`
+                    `🚨 *Karachi Civic Alert* (${selectedIssue.ucName})\n"${selectedIssue.title}" has been open for *${selectedIssue.daysOpen} days* with ${selectedIssue.affectedCount} residents affected.\n\nResponsible: ${activeUC.chairman.name} (${activeUC.chairman.seatTitle})\nTrack on Karachi Civic: ${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${selectedIssue.id}`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -626,7 +626,7 @@ export const IssueDetailModal: React.FC = () => {
                 <a
                   href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
                     `🚨 Civic Accountability in #Karachi: "${selectedIssue.title}" in ${selectedIssue.ucName} has been open for ${selectedIssue.daysOpen} days. ${selectedIssue.affectedCount} neighbors affected. @KarachiCivic`
-                  )}&url=${encodeURIComponent(`https://karachicivic.org/issue/${selectedIssue.id}`)}`}
+                  )}&url=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${selectedIssue.id}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-xs text-white border border-slate-600 shadow-xs transition"
@@ -639,11 +639,11 @@ export const IssueDetailModal: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const shareUrl = `${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}/issue/${selectedIssue.id}`;
+                    const shareUrl = `${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${selectedIssue.id}`;
                     if (navigator.clipboard) {
                       navigator.clipboard.writeText(shareUrl);
                       setCopiedLink(true);
-                      showToast("Issue link copied to clipboard!");
+                      showToast("Direct issue link copied to clipboard!");
                       setTimeout(() => setCopiedLink(false), 2000);
                     }
                   }}

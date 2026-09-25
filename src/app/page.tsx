@@ -26,6 +26,7 @@ import { LeaderDashboardModal } from "@/components/dashboards/LeaderDashboardMod
 import { UCIdeasBoardModal } from "@/components/modals/UCIdeasBoardModal";
 import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
 import { OnboardingModal } from "@/components/modals/OnboardingModal";
+import { OfficialProfileModal } from "@/components/modals/OfficialProfileModal";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
 
 function CivicAppContent() {
@@ -73,6 +74,7 @@ function CivicAppContent() {
       <UCIdeasBoardModal />
       <FindMyUCModal />
       <OnboardingModal />
+      <OfficialProfileModal />
     </div>
   );
 }
