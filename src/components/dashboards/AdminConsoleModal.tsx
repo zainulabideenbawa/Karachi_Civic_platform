@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useCivic } from "@/context/CivicContext";
 import {
   X,
@@ -20,7 +20,19 @@ import {
   UserX,
   ExternalLink,
   Filter,
+  MapPin,
+  Compass,
+  Plus,
+  Trash2,
+  Globe,
+  Navigation,
+  Layers,
+  Award,
+  Sparkles,
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
+import { Town, UC } from "@/types/civic";
 
 export const AdminConsoleModal: React.FC = () => {
   const {
@@ -39,18 +51,122 @@ export const AdminConsoleModal: React.FC = () => {
     rejectLeaderApplicant,
     jurisdictionDisputes,
     resolveJurisdictionDispute,
+    allTowns,
+    allUCs,
+    addNewTown,
+    addNewUC,
+    deleteUC,
+    deleteTown,
+    seedStandardKarachiTowns,
+    issues,
     showToast,
   } = useCivic();
 
   const [activeSubTab, setActiveSubTab] = useState<
-    "moderation" | "officials" | "leaders" | "jurisdiction" | "audit" | "engine"
-  >("moderation");
+    "geography" | "moderation" | "officials" | "leaders" | "jurisdiction" | "audit" | "engine"
+  >("geography");
 
   // Moderation state
   const [userSearch, setUserSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "flagged" | "banned" | "active">("all");
   const [banReasonInput, setBanReasonInput] = useState<{ [userId: string]: string }>({});
   const [activeBanUserId, setActiveBanUserId] = useState<string | null>(null);
+
+  // Geography & Delimitations state
+  const [geoFilter, setGeoFilter] = useState<"all" | "towns" | "ucs">("all");
+  const [geoSearch, setGeoSearch] = useState("");
+  const [isAddTownModalOpen, setIsAddTownModalOpen] = useState(false);
+  const [isAddUCModalOpen, setIsAddUCModalOpen] = useState(false);
+
+  // New Town Form state
+  const [newTownName, setNewTownName] = useState("");
+  const [newTownDistrict, setNewTownDistrict] = useState("East");
+  const [newTownTotalUcs, setNewTownTotalUcs] = useState("12");
+  const [newTownChairman, setNewTownChairman] = useState("");
+  const [newTownParty, setNewTownParty] = useState("Independent");
+
+  // New UC Form state
+  const [newUCTownId, setNewUCTownId] = useState(allTowns[0]?.id || "");
+  const [newUCNumber, setNewUCNumber] = useState("");
+  const [newUCName, setNewUCName] = useState("");
+  const [newUCNeighborhoods, setNewUCNeighborhoods] = useState("");
+  const [newUCLat, setNewUCLat] = useState("24.8607");
+  const [newUCLng, setNewUCLng] = useState("67.0011");
+  const [newUCChairman, setNewUCChairman] = useState("");
+  const [newUCParty, setNewUCParty] = useState("Independent");
+  const [newUCOfficeContact, setNewUCOfficeContact] = useState("");
+
+  const adminMapContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminMapInstanceRef = useRef<any>(null);
+
+  // Initialize interactive admin Leaflet map
+  useEffect(() => {
+    let isMounted = true;
+    if (!isAdminConsoleOpen || activeSubTab !== "geography") return;
+
+    const timer = setTimeout(async () => {
+      if (!adminMapContainerRef.current) return;
+      try {
+        const L = (await import("leaflet")).default;
+        if (!adminMapContainerRef.current) return;
+
+        if (adminMapInstanceRef.current) {
+          adminMapInstanceRef.current.remove();
+          adminMapInstanceRef.current = null;
+        }
+
+        const map = L.map(adminMapContainerRef.current, {
+          center: [24.892, 67.075],
+          zoom: 11,
+          zoomControl: true,
+          attributionControl: false,
+        });
+
+        L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          subdomains: ["a", "b", "c"],
+        }).addTo(map);
+
+        allUCs.forEach((uc) => {
+          const marker = L.circleMarker([uc.lat, uc.lng], {
+            radius: 8,
+            fillColor: "#0f766e",
+            color: "#ffffff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9,
+          }).addTo(map);
+
+          marker.bindPopup(`
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; min-width: 170px; line-height: 1.4;">
+              <strong style="color: #0f766e; font-size: 13px; display: block; margin-bottom: 2px;">${uc.name}</strong>
+              <div style="color: #475569; font-size: 11px;">Town: <b>${uc.townName}</b></div>
+              <div style="color: #1e293b;">Chairman: <b>${uc.chairman.name}</b></div>
+              <div style="color: #64748b; font-size: 10px;">Party: ${uc.chairman.party}</div>
+              <div style="color: #059669; font-weight: bold; margin-top: 2px;">Score: ${uc.score}/100</div>
+              <div style="color: #94a3b8; font-size: 9px; font-family: monospace; margin-top: 2px;">${uc.lat.toFixed(4)}, ${uc.lng.toFixed(4)}</div>
+            </div>
+          `);
+        });
+
+        if (isMounted) {
+          adminMapInstanceRef.current = map;
+        }
+      } catch (err) {
+        console.warn("Admin map init warning:", err);
+      }
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      if (adminMapInstanceRef.current) {
+        adminMapInstanceRef.current.remove();
+        adminMapInstanceRef.current = null;
+      }
+    };
+  }, [isAdminConsoleOpen, activeSubTab, allUCs]);
 
   if (!isAdminConsoleOpen) return null;
 
@@ -66,6 +182,28 @@ export const AdminConsoleModal: React.FC = () => {
     if (statusFilter === "banned") return u.status === "banned" || u.status === "shadowbanned";
     if (statusFilter === "active") return u.status === "active";
     return true;
+  });
+
+  // Filter Towns & UCs
+  const filteredTowns = allTowns.filter((t) => {
+    if (!geoSearch) return true;
+    const q = geoSearch.toLowerCase();
+    return (
+      t.name.toLowerCase().includes(q) ||
+      t.district.toLowerCase().includes(q) ||
+      t.townChairmanName.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredUCs = allUCs.filter((u) => {
+    if (!geoSearch) return true;
+    const q = geoSearch.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.townName.toLowerCase().includes(q) ||
+      u.chairman.name.toLowerCase().includes(q) ||
+      u.neighborhoods.some((n) => n.toLowerCase().includes(q))
+    );
   });
 
   return (
@@ -97,6 +235,21 @@ export const AdminConsoleModal: React.FC = () => {
 
         {/* Sub Navigation */}
         <div className="flex overflow-x-auto border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-semibold scrollbar-none">
+          <button
+            onClick={() => setActiveSubTab("geography")}
+            className={`flex-shrink-0 px-4 py-3 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
+              activeSubTab === "geography"
+                ? "border-teal-600 text-teal-700 dark:text-teal-400 bg-white dark:bg-slate-800/80 font-bold"
+                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 text-teal-600" />
+            <span>Maps, Towns &amp; UCs Delimitations</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 text-[10px] font-bold">
+              {allUCs.length} UCs
+            </span>
+          </button>
+
           <button
             onClick={() => setActiveSubTab("moderation")}
             className={`flex-shrink-0 px-4 py-3 flex items-center gap-1.5 border-b-2 transition cursor-pointer ${
@@ -192,6 +345,293 @@ export const AdminConsoleModal: React.FC = () => {
 
         {/* Content Body */}
         <div className="p-4 overflow-y-auto space-y-4 flex-1">
+          {/* Executive Platform Health & Coverage Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="p-2.5 rounded-xl bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/60">
+              <div className="text-[10px] uppercase font-bold text-teal-800 dark:text-teal-300">
+                Registered Towns
+              </div>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                <span>{allTowns.length} Towns</span>
+                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">25 Target</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60">
+              <div className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
+                Mapped UC Wards
+              </div>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                <span>{allUCs.length} UCs</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">246 Target</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60">
+              <div className="text-[10px] uppercase font-bold text-purple-800 dark:text-purple-300">
+                Live Reports
+              </div>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                <span>{issues.length} Issues</span>
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">Audited</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60">
+              <div className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300">
+                Integrity Alerts
+              </div>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                <span>{managedUsers.filter((u) => u.isFlaggedForBrigading).length} Flags</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Anti-Gaming</span>
+              </div>
+            </div>
+          </div>
+
+          {/* TAB 0: GEOGRAPHY & DELIMITATIONS (MAPS, TOWNS, UCS) */}
+          {activeSubTab === "geography" && (
+            <div className="space-y-4">
+              {/* Header explanation & Actions */}
+              <div className="p-3.5 rounded-xl bg-teal-50/90 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 text-xs text-teal-950 dark:text-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <Globe className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-teal-900 dark:text-teal-100">
+                      Karachi Municipal Boundaries &amp; ECP Delimitation Registry
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+                      Manage official Union Council seats, assign elected Chairmen, and provision new Towns across Karachi&apos;s 7 municipal districts.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setIsAddTownModalOpen(true)}
+                    className="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Town</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (allTowns.length === 0) {
+                        showToast("Please register at least one Town first!");
+                        return;
+                      }
+                      setNewUCTownId(allTowns[0].id);
+                      setIsAddUCModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add UC Ward</span>
+                  </button>
+                  <button
+                    onClick={seedStandardKarachiTowns}
+                    className="px-2.5 py-1.5 rounded-lg border border-teal-300 dark:border-teal-700 bg-white dark:bg-slate-800 text-teal-800 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-slate-700 text-xs font-semibold transition cursor-pointer"
+                    title="Seed standard Karachi Towns like Saddar, Clifton, Malir, Keamari, Orangi"
+                  >
+                    Seed Standard Towns
+                  </button>
+                </div>
+              </div>
+
+              {/* Interactive Delimitation Map Preview */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950 shadow-md">
+                <div className="px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-white">
+                  <div className="flex items-center gap-2 font-bold text-teal-400">
+                    <Navigation className="w-4 h-4" />
+                    <span>Live Karachi Delimitation Map</span>
+                    <span className="text-[10px] bg-teal-950 text-teal-300 px-1.5 py-0.5 rounded border border-teal-800">
+                      {allUCs.length} Points Mapped
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    Click any marker to inspect UC details &amp; Chairman
+                  </span>
+                </div>
+                <div className="relative w-full h-56 sm:h-72">
+                  <div ref={adminMapContainerRef} className="w-full h-full z-0" />
+                </div>
+              </div>
+
+              {/* Search & Filters */}
+              <div className="flex flex-col sm:flex-row gap-2 items-center justify-between pt-1">
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Towns, UCs, neighborhoods, or chairmen..."
+                    value={geoSearch}
+                    onChange={(e) => setGeoSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+
+                <div className="flex gap-1.5 w-full sm:w-auto">
+                  <button
+                    onClick={() => setGeoFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      geoFilter === "all"
+                        ? "bg-teal-700 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                    }`}
+                  >
+                    All ({allTowns.length + allUCs.length})
+                  </button>
+                  <button
+                    onClick={() => setGeoFilter("towns")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      geoFilter === "towns"
+                        ? "bg-teal-700 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                    }`}
+                  >
+                    Towns ({allTowns.length})
+                  </button>
+                  <button
+                    onClick={() => setGeoFilter("ucs")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      geoFilter === "ucs"
+                        ? "bg-teal-700 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                    }`}
+                  >
+                    UC Wards ({allUCs.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Towns Section */}
+              {(geoFilter === "all" || geoFilter === "towns") && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-teal-600" />
+                      <span>Registered Municipal Towns ({filteredTowns.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Local Government Councils</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {filteredTowns.map((town) => (
+                      <div
+                        key={town.id}
+                        className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2 hover:border-teal-500/50 transition shadow-xs"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                                {town.name}
+                              </h4>
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                District {town.district}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Town Chairman: <strong className="text-slate-800 dark:text-slate-200">{town.townChairmanName}</strong> ({town.townChairmanParty})
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to remove ${town.name} from the platform?`)) {
+                                deleteTown(town.id);
+                              }
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer transition"
+                            title="Remove Town"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-500">
+                          <span>Capacity: <strong>{town.totalUcs} UCs</strong></span>
+                          <span>Score: <strong className="text-emerald-600 font-bold">{town.teamScore}/100</strong> (Rank #{town.rank})</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* UC Wards Section */}
+              {(geoFilter === "all" || geoFilter === "ucs") && (
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-emerald-600" />
+                      <span>Registered UC Wards ({filteredUCs.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">ECP Delimitated Constituencies</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {filteredUCs.map((uc) => (
+                      <div
+                        key={uc.id}
+                        className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2 hover:border-emerald-500/50 transition shadow-xs"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center">
+                                #{uc.number}
+                              </span>
+                              <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                                {uc.name}
+                              </h4>
+                            </div>
+                            <span className="text-[10px] text-slate-400">
+                              {uc.townName} · Chairman: <strong className="text-slate-700 dark:text-slate-300">{uc.chairman.name}</strong> ({uc.chairman.party})
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to remove ${uc.name}?`)) {
+                                deleteUC(uc.id);
+                              }
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer transition"
+                            title="Remove UC"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Neighborhoods tags */}
+                        <div className="flex flex-wrap gap-1">
+                          {uc.neighborhoods.slice(0, 3).map((nh, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                            >
+                              {nh}
+                            </span>
+                          ))}
+                          {uc.neighborhoods.length > 3 && (
+                            <span className="text-[9px] text-slate-400">
+                              +{uc.neighborhoods.length - 3} more
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400 font-mono">
+                          <span>GPS: {uc.lat.toFixed(4)}, {uc.lng.toFixed(4)}</span>
+                          <span className="font-sans font-bold text-emerald-600">{uc.score} Score</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 1: USER MODERATION & BANNING */}
           {activeSubTab === "moderation" && (
             <div className="space-y-4">
@@ -683,6 +1123,356 @@ export const AdminConsoleModal: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* ================= ADD NEW TOWN MODAL ================= */}
+        {isAddTownModalOpen && (
+          <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-3 animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-teal-600" />
+                  <span>Add Municipal Town Delimitation</span>
+                </h3>
+                <button
+                  onClick={() => setIsAddTownModalOpen(false)}
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newTownName.trim()) {
+                    showToast("Please enter a Town Name!");
+                    return;
+                  }
+                  addNewTown({
+                    name: newTownName.trim(),
+                    district: newTownDistrict,
+                    totalUcs: Number(newTownTotalUcs) || 10,
+                    townChairmanName: newTownChairman.trim() || "Elected Chairman",
+                    townChairmanParty: newTownParty.trim() || "Independent",
+                  });
+                  setNewTownName("");
+                  setNewTownChairman("");
+                  setIsAddTownModalOpen(false);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Town Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Saddar Town, Malir Town, Clifton Zone"
+                    value={newTownName}
+                    onChange={(e) => setNewTownName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      District
+                    </label>
+                    <select
+                      value={newTownDistrict}
+                      onChange={(e) => setNewTownDistrict(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+                    >
+                      <option value="East">District East</option>
+                      <option value="South">District South</option>
+                      <option value="Central">District Central</option>
+                      <option value="West">District West</option>
+                      <option value="Korangi">District Korangi</option>
+                      <option value="Malir">District Malir</option>
+                      <option value="Keamari">District Keamari</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Total Expected UCs
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={newTownTotalUcs}
+                      onChange={(e) => setNewTownTotalUcs(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Town Chairman Full Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Syed Rehan Ali"
+                    value={newTownChairman}
+                    onChange={(e) => setNewTownChairman(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Political Party
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. JI, PPP, MQM-P, Independent"
+                    value={newTownParty}
+                    onChange={(e) => setNewTownParty(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTownModalOpen(false)}
+                    className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold cursor-pointer transition shadow-xs"
+                  >
+                    Register Town
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= ADD NEW UC MODAL ================= */}
+        {isAddUCModalOpen && (
+          <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-3 overflow-y-auto animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-3 my-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <span>Register Union Council (UC) Ward</span>
+                </h3>
+                <button
+                  onClick={() => setIsAddUCModalOpen(false)}
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newUCName.trim() || !newUCNumber) {
+                    showToast("Please specify UC Number and Name!");
+                    return;
+                  }
+                  const neighborhoodsArr = newUCNeighborhoods
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+
+                  addNewUC({
+                    townId: newUCTownId || allTowns[0]?.id || "town-gulshan",
+                    number: Number(newUCNumber),
+                    name: newUCName.trim(),
+                    neighborhoods: neighborhoodsArr.length > 0 ? neighborhoodsArr : ["Main Ward Area"],
+                    lat: Number(newUCLat) || 24.8607,
+                    lng: Number(newUCLng) || 67.0011,
+                    chairmanName: newUCChairman.trim() || `Chairman UC-${newUCNumber}`,
+                    party: newUCParty.trim() || "Independent",
+                    officeContact: newUCOfficeContact.trim() || `Secretariat Office, UC-${newUCNumber}`,
+                  });
+
+                  setNewUCNumber("");
+                  setNewUCName("");
+                  setNewUCNeighborhoods("");
+                  setNewUCChairman("");
+                  setIsAddUCModalOpen(false);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Town *
+                    </label>
+                    <select
+                      value={newUCTownId}
+                      onChange={(e) => setNewUCTownId(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer"
+                    >
+                      {allTowns.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      UC Number *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="246"
+                      required
+                      placeholder="e.g. 14"
+                      value={newUCNumber}
+                      onChange={(e) => setNewUCNumber(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    UC Name &amp; Description *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. UC-14 Gulzar-e-Hijri (Saadi Town / Scheme 33)"
+                    value={newUCName}
+                    onChange={(e) => setNewUCName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Neighborhoods / Mohallas (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Block 4, Saadi Town, Chapal Sun City"
+                    value={newUCNeighborhoods}
+                    onChange={(e) => setNewUCNeighborhoods(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      GPS Coordinates (Lat, Lng)
+                    </label>
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">Presets:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {[
+                      { name: "Saddar", lat: "24.8560", lng: "67.0180" },
+                      { name: "Clifton", lat: "24.8140", lng: "67.0330" },
+                      { name: "Gulshan", lat: "24.9180", lng: "67.0970" },
+                      { name: "Nazimabad", lat: "24.9150", lng: "67.0330" },
+                      { name: "Korangi", lat: "24.8320", lng: "67.1260" },
+                      { name: "Malir", lat: "24.8930", lng: "67.1950" },
+                    ].map((preset) => (
+                      <button
+                        type="button"
+                        key={preset.name}
+                        onClick={() => {
+                          setNewUCLat(preset.lat);
+                          setNewUCLng(preset.lng);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Latitude (e.g. 24.9180)"
+                      value={newUCLat}
+                      onChange={(e) => setNewUCLat(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Longitude (e.g. 67.0970)"
+                      value={newUCLng}
+                      onChange={(e) => setNewUCLng(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Chairman Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Tariq Mehmood"
+                      value={newUCChairman}
+                      onChange={(e) => setNewUCChairman(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Party
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. JI, PPP, Independent"
+                      value={newUCParty}
+                      onChange={(e) => setNewUCParty(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Secretariat / Office Contact
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 021-34988712 · Block 4 Main Office"
+                    value={newUCOfficeContact}
+                    onChange={(e) => setNewUCOfficeContact(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddUCModalOpen(false)}
+                    className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold cursor-pointer transition shadow-xs"
+                  >
+                    Register &amp; Map UC
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

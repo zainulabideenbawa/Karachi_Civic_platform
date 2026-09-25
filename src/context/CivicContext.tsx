@@ -139,6 +139,29 @@ interface CivicContextType {
   jurisdictionDisputes: JurisdictionDispute[];
   resolveJurisdictionDispute: (disputeId: string, decision: "transfer" | "keep") => void;
   
+  // Geography & Delimitation Administration
+  addNewTown: (townData: {
+    name: string;
+    district: string;
+    totalUcs: number;
+    townChairmanName: string;
+    townChairmanParty: string;
+  }) => Town;
+  addNewUC: (ucData: {
+    townId: string;
+    number: number;
+    name: string;
+    neighborhoods: string[];
+    lat: number;
+    lng: number;
+    chairmanName: string;
+    party: string;
+    officeContact?: string;
+  }) => UC;
+  deleteUC: (ucId: string) => void;
+  deleteTown: (townId: string) => void;
+  seedStandardKarachiTowns: () => void;
+  
   // Actions
   toggleAffected: (issueId: string) => void;
   voteConfirmation: (
@@ -682,6 +705,16 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       ) {
         setActiveRole(storedRole as UserRole);
       }
+      const storedTowns = localStorage.getItem("karachi_civic_towns_v2");
+      if (storedTowns) {
+        const parsed = JSON.parse(storedTowns);
+        if (Array.isArray(parsed) && parsed.length > 0) setAllTowns(parsed);
+      }
+      const storedUCs = localStorage.getItem("karachi_civic_ucs_v2");
+      if (storedUCs) {
+        const parsed = JSON.parse(storedUCs);
+        if (Array.isArray(parsed) && parsed.length > 0) setAllUCs(parsed);
+      }
       const storedUcId = localStorage.getItem("karachi_civic_uc_id_v2");
       if (storedUcId) {
         const found = allUCs.find((u) => u.id === storedUcId);
@@ -703,6 +736,26 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       console.warn("Could not save issues to localStorage:", e);
     }
   }, [issues, hasHydrated]);
+
+  // Persist towns on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_towns_v2", JSON.stringify(allTowns));
+    } catch (e) {
+      console.warn("Could not save towns to localStorage:", e);
+    }
+  }, [allTowns, hasHydrated]);
+
+  // Persist UCs on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_ucs_v2", JSON.stringify(allUCs));
+    } catch (e) {
+      console.warn("Could not save UCs to localStorage:", e);
+    }
+  }, [allUCs, hasHydrated]);
 
   // Persist active role on change
   useEffect(() => {
@@ -727,16 +780,237 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const resetDemoData = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("karachi_civic_issues_v2");
+      localStorage.removeItem("karachi_civic_towns_v2");
+      localStorage.removeItem("karachi_civic_ucs_v2");
       localStorage.removeItem("karachi_civic_role_v2");
       localStorage.removeItem("karachi_civic_uc_id_v2");
     }
     setIssues(MOCK_ISSUES);
+    setAllTowns(MOCK_TOWNS);
+    setAllUCs(MOCK_UCS);
     setActiveRole("citizen");
     setActiveUC(MOCK_UCS[0]);
     setManagedUsers(MOCK_MANAGED_USERS);
     setOfficialVerificationClaims(MOCK_OFFICIAL_CLAIMS);
     setJurisdictionDisputes(MOCK_JURISDICTION_DISPUTES);
     showToast("Demo data reset to factory initial state!");
+  };
+
+  // Geography & Delimitation Administration Methods
+  const addNewTown = (townData: {
+    name: string;
+    district: string;
+    totalUcs: number;
+    townChairmanName: string;
+    townChairmanParty: string;
+  }): Town => {
+    const slug = townData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const id = `town-${slug}-${Date.now().toString().slice(-4)}`;
+    const newTown: Town = {
+      id,
+      name: townData.name,
+      slug,
+      district: townData.district,
+      totalUcs: Number(townData.totalUcs) || 10,
+      teamScore: 65.0,
+      rank: allTowns.length + 1,
+      townChairmanName: townData.townChairmanName || "Elected Town Chairman",
+      townChairmanPhoto:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+      townChairmanParty: townData.townChairmanParty || "Independent",
+    };
+
+    setAllTowns((prev) => [...prev, newTown]);
+
+    const newLog: AuditLogEntry = {
+      id: `log-town-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `Town Delimitation Registered: ${newTown.name}`,
+      affectedUcOrOfficial: `Town ID: ${newTown.id} (${newTown.district} District)`,
+      reason: "ECP Delimitation Update & Official Registry Provisioning",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`Town "${newTown.name}" added successfully to Karachi registry!`);
+    return newTown;
+  };
+
+  const addNewUC = (ucData: {
+    townId: string;
+    number: number;
+    name: string;
+    neighborhoods: string[];
+    lat: number;
+    lng: number;
+    chairmanName: string;
+    party: string;
+    officeContact?: string;
+  }): UC => {
+    const targetTown = allTowns.find((t) => t.id === ucData.townId) || allTowns[0];
+    const slug = ucData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const id = `uc-${slug}-${Date.now().toString().slice(-4)}`;
+
+    const newOfficial: Official = {
+      id: `off-${slug}`,
+      name: ucData.chairmanName,
+      slug: ucData.chairmanName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      seatTitle: `Chairman, UC-${ucData.number} ${targetTown.name}`,
+      photo:
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=240&h=240&fit=crop&crop=face",
+      party: ucData.party || "Independent",
+      officeContact: ucData.officeContact || `UC Secretariat, UC-${ucData.number}`,
+      termStart: "2023-06-15",
+      termEnd: "2027-06-15",
+      isClaimed: false,
+      badges: ["ECP Gazetted Official"],
+      promisesKept: 0,
+      promisesTotal: 0,
+      eventsHeld: 0,
+      thankYouCount: 0,
+      fixSatisfaction: 5.0,
+    };
+
+    const newUC: UC = {
+      id,
+      townId: targetTown.id,
+      townName: targetTown.name,
+      number: ucData.number,
+      name: ucData.name,
+      slug,
+      neighborhoods: ucData.neighborhoods.length > 0 ? ucData.neighborhoods : ["Main Ward Area"],
+      lat: Number(ucData.lat) || 24.8607,
+      lng: Number(ucData.lng) || 67.0011,
+      chairman: newOfficial,
+      score: 70.0,
+      cityRank: allUCs.length + 1,
+      townRank: 1,
+      trend30d: 0,
+      totalEligibleIssues: 0,
+      resolvedIssues: 0,
+      oldestOpenDays: 0,
+      hasEnoughData: false,
+    };
+
+    setAllUCs((prev) => [...prev, newUC]);
+
+    const newLog: AuditLogEntry = {
+      id: `log-uc-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `UC Delimitation Registered: ${newUC.name}`,
+      affectedUcOrOfficial: `UC: ${newUC.name}, Seat: ${newOfficial.name}`,
+      reason: "ECP Gazetted Local Council Ward Delimitation",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`UC "${newUC.name}" added and mapped!`);
+    return newUC;
+  };
+
+  const deleteUC = (ucId: string) => {
+    setAllUCs((prev) => prev.filter((u) => u.id !== ucId));
+    const newLog: AuditLogEntry = {
+      id: `log-del-uc-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `UC Removed: ${ucId}`,
+      affectedUcOrOfficial: `Target UC ID: ${ucId}`,
+      reason: "Administrative boundary revision",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`UC deleted from platform.`);
+  };
+
+  const deleteTown = (townId: string) => {
+    setAllTowns((prev) => prev.filter((t) => t.id !== townId));
+    const newLog: AuditLogEntry = {
+      id: `log-del-town-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      actor: "SuperAdmin (ID: admin-root)",
+      action: `Town Removed: ${townId}`,
+      affectedUcOrOfficial: `Target Town ID: ${townId}`,
+      reason: "Administrative boundary revision",
+    };
+    setAuditLog((prev) => [newLog, ...prev]);
+    showToast(`Town removed from platform.`);
+  };
+
+  const seedStandardKarachiTowns = () => {
+    const existingSlugs = new Set(allTowns.map((t) => t.slug));
+    const additions: Town[] = [
+      {
+        id: "town-saddar",
+        name: "Saddar Town",
+        slug: "saddar-town",
+        district: "South",
+        totalUcs: 11,
+        teamScore: 71.4,
+        rank: 3,
+        townChairmanName: "Mansoor Ahmed",
+        townChairmanPhoto:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+        townChairmanParty: "PPP",
+      },
+      {
+        id: "town-clifton",
+        name: "Clifton & Cantonment Zone",
+        slug: "clifton-cantonment",
+        district: "South",
+        totalUcs: 8,
+        teamScore: 82.1,
+        rank: 1,
+        townChairmanName: "Brig. (R) Tariq Niazi",
+        townChairmanPhoto:
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face",
+        townChairmanParty: "CBC / Municipal Board",
+      },
+      {
+        id: "town-malir",
+        name: "Malir Town",
+        slug: "malir-town",
+        district: "Malir",
+        totalUcs: 12,
+        teamScore: 59.8,
+        rank: 12,
+        townChairmanName: "Jan Muhammad Baloch",
+        townChairmanPhoto:
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face",
+        townChairmanParty: "PPP",
+      },
+      {
+        id: "town-orangi",
+        name: "Orangi Town",
+        slug: "orangi-town",
+        district: "West",
+        totalUcs: 16,
+        teamScore: 51.2,
+        rank: 17,
+        townChairmanName: "Abdul Waheed",
+        townChairmanPhoto:
+          "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&crop=face",
+        townChairmanParty: "MQM-P",
+      },
+      {
+        id: "town-keamari",
+        name: "Keamari Town",
+        slug: "keamari-town",
+        district: "Keamari",
+        totalUcs: 10,
+        teamScore: 54.3,
+        rank: 15,
+        townChairmanName: "Humayun Khan",
+        townChairmanPhoto:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+        townChairmanParty: "PPP",
+      },
+    ].filter((t) => !existingSlugs.has(t.slug));
+
+    if (additions.length === 0) {
+      showToast("Standard Karachi towns are already registered!");
+      return;
+    }
+
+    setAllTowns((prev) => [...prev, ...additions]);
+    showToast(`Added ${additions.length} standard Karachi towns to registry!`);
   };
 
   // Browser online/offline event listener (Section 11.6)
@@ -1724,6 +1998,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         adoptNGOIssue,
         resolveNGOIssue,
         resetDemoData,
+        addNewTown,
+        addNewUC,
+        deleteUC,
+        deleteTown,
+        seedStandardKarachiTowns,
       }}
     >
       {children}
