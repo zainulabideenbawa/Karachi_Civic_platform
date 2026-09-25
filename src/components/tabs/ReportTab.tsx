@@ -4,57 +4,45 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useCivic } from "@/context/CivicContext";
 import { CIVIC_CATEGORIES } from "@/config/categories";
+import { compressImageTiers, CompressionResult } from "@/lib/image-compression";
 import { Issue } from "@/types/civic";
 import {
   Camera,
-  RotateCw,
-  AlertTriangle,
-  CheckCircle,
-  Share2,
-  MapPin,
-  ArrowLeft,
+  Upload,
   X,
   Zap,
-  Info,
+  Check,
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  AlertTriangle,
+  MapPin,
+  RotateCcw,
+  UploadCloud,
+  Shield,
+  EyeOff,
+  Share2,
+  Sparkles,
   Trash2,
+  Image as ImageIcon,
+  Plus,
+  Search,
+  MessageCircle,
+  CheckCircle,
+  Sliders,
+  ExternalLink,
+  Copy,
+  Info,
   Waves,
   Lightbulb,
   Construction,
   Trees,
   ShieldAlert,
   Bug,
-  HeartPulse,
   Droplets,
   Flame,
-  HelpCircle,
-  UploadCloud,
-  ArrowRight,
-  Plus,
-  Upload,
-  Image as ImageIcon,
+  FolderPlus,
 } from "lucide-react";
-
-import { compressImageTiers, CompressionResult } from "@/lib/image-compression";
-
-// Icon mapping helper
-const getCategoryIcon = (iconName: string) => {
-  switch (iconName) {
-    case "Trash2": return <Trash2 className="w-6 h-6" />;
-    case "Waves": return <Waves className="w-6 h-6" />;
-    case "Lightbulb": return <Lightbulb className="w-6 h-6" />;
-    case "Construction": return <Construction className="w-6 h-6" />;
-    case "Trees": return <Trees className="w-6 h-6" />;
-    case "ShieldAlert": return <ShieldAlert className="w-6 h-6" />;
-    case "Bug": return <Bug className="w-6 h-6" />;
-    case "HeartPulse": return <HeartPulse className="w-6 h-6" />;
-    case "Droplets": return <Droplets className="w-6 h-6" />;
-    case "Zap": return <Zap className="w-6 h-6" />;
-    case "Flame": return <Flame className="w-6 h-6" />;
-    case "HelpCircle":
-    default:
-      return <HelpCircle className="w-6 h-6" />;
-  }
-};
 
 export const ReportTab: React.FC = () => {
   const {
@@ -67,33 +55,68 @@ export const ReportTab: React.FC = () => {
     showToast,
   } = useCivic();
 
-  // Steps: 1 = Camera, 2 = Category, 3 = DuplicateCheck, 4 = Review, 5 = Success
+  // Steps: 1 = Camera/Evidence, 2 = Category, 3 = Duplicate Check, 4 = Review, 5 = Success
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   // Form State
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+  const [activePhotoIndex, setActivePhotoIndex] = useState<number>(0);
   const [compressedTiers, setCompressedTiers] = useState<CompressionResult | null>(null);
   const [compressedSizeKb, setCompressedSizeKb] = useState<number>(142);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categorySearch, setCategorySearch] = useState<string>("");
   const [severity, setSeverity] = useState<"normal" | "dangerous">("normal");
   const [description, setDescription] = useState<string>("");
   const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
-  const [gpsAccuracy] = useState<number>(14); // 14 meters (well under 100m limit)
+  const [gpsAccuracy] = useState<number>(12); // ±12m
   const [matchingDuplicate, setMatchingDuplicate] = useState<Issue | null>(null);
   const [createdIssueId, setCreatedIssueId] = useState<string>("");
   const [isUploadingToR2, setIsUploadingToR2] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // Camera video/stream & native device upload refs
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Native File and Camera Inputs (always mounted in DOM)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [cameraActive, setCameraActive] = useState(false);
+  // In-browser WebRTC state
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isStartingCamera, setIsStartingCamera] = useState(false);
-  const [flashOn, setFlashOn] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
+  const [flashOn, setFlashOn] = useState<boolean>(false);
+  const [shutterFlash, setShutterFlash] = useState<boolean>(false);
 
-  // Initialize camera stream with multi-camera fallback
+  // Clean up media streams
+  const stopCameraStream = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+    };
+  }, []);
+
+  // Native camera trigger (mobile environment camera)
+  const triggerCamera = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+    }
+  };
+
+  // Gallery trigger
+  const triggerGallery = () => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.click();
+    }
+  };
+
+  // Start in-browser video feed on explicit demand
   const startCamera = async () => {
     setIsStartingCamera(true);
     setCameraError(null);
@@ -103,21 +126,19 @@ export const ReportTab: React.FC = () => {
       !navigator.mediaDevices ||
       !navigator.mediaDevices.getUserMedia
     ) {
-      setCameraError("In-browser live stream not supported. Use 'Open Camera' or 'Upload Photos'.");
+      setCameraError("In-browser live stream not supported. Use 'Take Live Photo'.");
       setIsStartingCamera(false);
       return;
     }
 
     try {
       let stream: MediaStream | null = null;
-      // 1. First attempt: ideal mobile back camera (environment)
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
           audio: false,
         });
       } catch {
-        // 2. Fallback attempt: any available webcam / camera
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -137,46 +158,50 @@ export const ReportTab: React.FC = () => {
     } catch (err: unknown) {
       console.warn("Camera request error:", err);
       setCameraActive(false);
-      setCameraError("Camera permission blocked. Tap 'Open Camera' to use your device camera directly.");
+      setCameraError("Camera access denied. Tap 'Take Live Photo' to trigger your phone camera directly.");
     } finally {
       setIsStartingCamera(false);
     }
   };
 
-  useEffect(() => {
-    if (step === 1) {
-      startCamera();
+  // Capture frame from active video stream
+  const handleCaptureVideo = async () => {
+    if (capturedPhotos.length >= 3) {
+      showToast("Maximum 3 angles captured. Tap Continue to proceed.");
+      return;
     }
 
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
+    if (cameraActive && videoRef.current) {
+      setShutterFlash(true);
+      setTimeout(() => setShutterFlash(false), 200);
+
+      try {
+        const video = videoRef.current;
+        const width = video.videoWidth || 1280;
+        const height = video.videoHeight || 720;
+        const result = await compressImageTiers(video, width, height, {
+          lat: activeUC.lat,
+          lng: activeUC.lng,
+        });
+        setCompressedTiers(result);
+        setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
+        setCapturedPhotos((prev) => {
+          const next = [...prev, result.full.dataUrl];
+          setActivePhotoIndex(next.length - 1);
+          return next;
+        });
+        showToast(`Angle ${capturedPhotos.length + 1} captured & compressed to ${Math.round(result.full.sizeBytes / 1024)} KB WebP`);
+        return;
+      } catch (e) {
+        console.warn("Capture frame error:", e);
       }
-    };
-  }, [step]);
-
-  // Remove an angle
-  const removeCapturedPhoto = (index: number) => {
-    setCapturedPhotos((prev) => prev.filter((_, i) => i !== index));
-    showToast(`Removed angle ${index + 1}`);
-  };
-
-  // Direct Mobile / OS Native Camera Trigger
-  const triggerCamera = () => {
-    if (cameraInputRef.current) {
-      cameraInputRef.current.click();
     }
+
+    // Default to triggering native camera
+    triggerCamera();
   };
 
-  // Direct Photo Gallery / Files Trigger
-  const triggerGallery = () => {
-    if (galleryInputRef.current) {
-      galleryInputRef.current.click();
-    }
-  };
-
-  // Process photos selected via Native Camera or Photo Gallery
+  // Process selected file(s) from native camera or gallery
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -216,14 +241,22 @@ export const ReportTab: React.FC = () => {
 
         setCompressedTiers(result);
         setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
-        setCapturedPhotos((prev) => [...prev, result.full.dataUrl]);
-        showToast(`Angle ${capturedPhotos.length + i + 1} captured & compressed (${Math.round(result.full.sizeBytes / 1024)} KB)`);
+        setCapturedPhotos((prev) => {
+          const next = [...prev, result.full.dataUrl];
+          setActivePhotoIndex(next.length - 1);
+          return next;
+        });
+        showToast(`Angle ${capturedPhotos.length + i + 1} compressed to ${Math.round(result.full.sizeBytes / 1024)} KB WebP`);
       } catch (err) {
-        console.warn("Compression fallback:", err);
+        console.warn("Image compression error:", err);
         const reader = new FileReader();
         reader.onload = () => {
           if (typeof reader.result === "string") {
-            setCapturedPhotos((prev) => [...prev, reader.result as string]);
+            setCapturedPhotos((prev) => {
+              const next = [...prev, reader.result as string];
+              setActivePhotoIndex(next.length - 1);
+              return next;
+            });
             showToast(`Angle ${capturedPhotos.length + i + 1} added!`);
           }
         };
@@ -235,37 +268,38 @@ export const ReportTab: React.FC = () => {
     e.target.value = "";
   };
 
-  // Capture & Multi-Tier Compression (Section 11.0c & 11.5)
-  const handleCapture = async () => {
+  // Quick sample photo angle for testing
+  const addSamplePhoto = () => {
     if (capturedPhotos.length >= 3) {
-      showToast("Maximum 3 angles captured. Tap Continue to proceed.");
+      showToast("Maximum 3 angles captured.");
       return;
     }
-
-    try {
-      if (cameraActive && videoRef.current) {
-        const video = videoRef.current;
-        const width = video.videoWidth || 1280;
-        const height = video.videoHeight || 720;
-        const result = await compressImageTiers(video, width, height, {
-          lat: activeUC.lat,
-          lng: activeUC.lng,
-        });
-        setCompressedTiers(result);
-        setCompressedSizeKb(Math.round(result.full.sizeBytes / 1024));
-        setCapturedPhotos((prev) => [...prev, result.full.dataUrl]);
-        showToast(`Angle ${capturedPhotos.length + 1} compressed to ${Math.round(result.full.sizeBytes / 1024)} KB WebP`);
-        return;
-      }
-    } catch (e) {
-      console.warn("Canvas compression error, using camera input:", e);
-    }
-
-    // If live video is not active, trigger native device camera immediately
-    triggerCamera();
+    const sampleUrls = [
+      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
+      "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=1280&h=960&fit=crop",
+      "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=1280&h=960&fit=crop",
+    ];
+    const newPhoto = sampleUrls[capturedPhotos.length % sampleUrls.length];
+    setCapturedPhotos((prev) => {
+      const next = [...prev, newPhoto];
+      setActivePhotoIndex(next.length - 1);
+      return next;
+    });
+    setCompressedSizeKb(118 + capturedPhotos.length * 14);
+    showToast(`Angle ${capturedPhotos.length + 1} added as evidence sample`);
   };
 
-  // Select Category & Duplicate Check
+  // Remove photo angle
+  const removeCapturedPhoto = (index: number) => {
+    setCapturedPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setActivePhotoIndex(Math.max(0, next.length - 1));
+      return next;
+    });
+    showToast(`Removed angle ${index + 1}`);
+  };
+
+  // Category Selection & Duplicate Check
   const handleSelectCategory = (catId: string) => {
     setSelectedCategory(catId);
 
@@ -285,21 +319,27 @@ export const ReportTab: React.FC = () => {
     }
   };
 
-  // Submit Final Issue with Cloudflare R2 Upload for all photos
+  // Submit Final Report
   const handleSubmitIssue = async () => {
+    if (!selectedCategory) {
+      showToast("Please select a category");
+      setStep(2);
+      return;
+    }
+
     setIsUploadingToR2(true);
 
-    // Upload all captured photo angles to Cloudflare R2 / S3
     const uploadedPhotos = await Promise.all(
-      capturedPhotos.map(async (photoData, idx) => {
-        let finalUrl = photoData;
-        if (photoData.startsWith("data:")) {
+      capturedPhotos.map(async (photoDataUrl, idx) => {
+        let finalUrl = photoDataUrl;
+        if (photoDataUrl.startsWith("data:")) {
           try {
             const uploadRes = await fetch("/api/upload", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                imageBase64: photoData,
+                imageBase64: photoDataUrl,
+                filename: `evidence-angle-${idx + 1}.webp`,
               }),
             });
             const uploadData = await uploadRes.json();
@@ -307,7 +347,7 @@ export const ReportTab: React.FC = () => {
               finalUrl = uploadData.url;
             }
           } catch (err) {
-            console.warn("R2 upload fallback for photo angle:", idx, err);
+            console.warn("Upload fallback for photo angle:", idx, err);
           }
         }
         return {
@@ -317,6 +357,7 @@ export const ReportTab: React.FC = () => {
           capturedAt: new Date().toISOString(),
           lat: activeUC.lat,
           lng: activeUC.lng,
+          uploaderName: isAnonymous ? "Anonymous Resident" : "Zain Bawa",
         };
       })
     );
@@ -324,46 +365,79 @@ export const ReportTab: React.FC = () => {
     setIsUploadingToR2(false);
 
     const categoryObj = CIVIC_CATEGORIES.find((c) => c.id === selectedCategory);
-    const categoryName = categoryObj?.name.en || "Civic Issue";
-
     const newId = addNewIssue({
       ucId: activeUC.id,
       ucName: activeUC.name,
       townId: activeUC.townId,
       townName: activeUC.townName,
       categoryId: selectedCategory,
-      categoryName,
-      title: description.slice(0, 60) || `${categoryName} reported in ${activeUC.name}`,
-      description: description || `Civic evidence recorded at ${activeUC.name}.`,
-      lat: activeUC.lat + (Math.random() - 0.5) * 0.005,
-      lng: activeUC.lng + (Math.random() - 0.5) * 0.005,
-      addressApprox: `${activeUC.neighborhoods[0] || "Block 13"}, ${activeUC.name}`,
+      categoryName: categoryObj?.name.en || "Civic Issue",
+      subCategory: categoryObj?.name.ur_roman || "Aam Shikayat",
+      title: description.trim()
+        ? description.trim().slice(0, 70)
+        : `${categoryObj?.name.en || "Civic Issue"} at ${activeUC.name}`,
+      description: description.trim()
+        ? description.trim()
+        : `Verified evidence submitted for ${categoryObj?.name.en} in ${activeUC.name}.`,
+      lat: activeUC.lat,
+      lng: activeUC.lng,
+      addressApprox: `${activeUC.neighborhoods[0] || activeUC.name}, Karachi`,
       gpsAccuracyMeters: gpsAccuracy,
       severity,
       isAnonymous,
-      reporterName: isAnonymous ? `Resident of ${activeUC.name}` : "Zain Bawa",
-      reporterId: isAnonymous ? "user-anon" : "user-101",
+      reporterName: isAnonymous ? "Anonymous Resident" : "Zain Bawa",
+      reporterId: "user-101",
       status: "open",
-      eligible: categoryObj?.scoredInMVP || false,
-      photos: uploadedPhotos.length > 0 ? uploadedPhotos : [
-        {
-          id: `photo-${Date.now()}-0`,
-          kind: "report",
-          url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
-          capturedAt: new Date().toISOString(),
-          lat: activeUC.lat,
-          lng: activeUC.lng,
-        },
-      ],
+      eligible: true,
+      photos:
+        uploadedPhotos.length > 0
+          ? uploadedPhotos
+          : [
+              {
+                id: `photo-${Date.now()}-0`,
+                kind: "report",
+                url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=1280&h=960&fit=crop",
+                capturedAt: new Date().toISOString(),
+                lat: activeUC.lat,
+                lng: activeUC.lng,
+              },
+            ],
     });
 
     setCreatedIssueId(newId);
+    stopCameraStream();
     setStep(5);
   };
 
+  const getCategoryIcon = (iconName: string) => {
+    switch (iconName) {
+      case "Trash2": return <Trash2 className="w-6 h-6" />;
+      case "Waves": return <Waves className="w-6 h-6" />;
+      case "Lightbulb": return <Lightbulb className="w-6 h-6" />;
+      case "Construction": return <Construction className="w-6 h-6" />;
+      case "Trees": return <Trees className="w-6 h-6" />;
+      case "ShieldAlert": return <ShieldAlert className="w-6 h-6" />;
+      case "Bug": return <Bug className="w-6 h-6" />;
+      case "Droplets": return <Droplets className="w-6 h-6" />;
+      case "Zap": return <Zap className="w-6 h-6" />;
+      case "Flame": return <Flame className="w-6 h-6" />;
+      default: return <FolderPlus className="w-6 h-6" />;
+    }
+  };
+
+  const filteredCategories = CIVIC_CATEGORIES.filter((c) => {
+    if (!categorySearch.trim()) return true;
+    const q = categorySearch.toLowerCase();
+    return (
+      c.name.en.toLowerCase().includes(q) ||
+      c.name.ur_roman.toLowerCase().includes(q) ||
+      c.name.ur.includes(q)
+    );
+  });
+
   return (
-    <div className="max-w-md mx-auto pb-24 min-h-[calc(100vh-8rem)] flex flex-col justify-between animate-in fade-in duration-200">
-      {/* Permanent Native Device Inputs (always mounted in DOM for mobile camera & gallery triggers) */}
+    <div className="max-w-md mx-auto pb-24 min-h-[calc(100vh-8.5rem)] flex flex-col justify-between animate-in fade-in duration-200">
+      {/* Permanent Native Device Inputs (guaranteed mounted in DOM) */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -383,128 +457,209 @@ export const ReportTab: React.FC = () => {
         onChange={handleFileInputChange}
       />
 
-      {/* ================= STEP 1: IN-APP CAMERA ================= */}
+      {/* ================= STEPPER PROGRESS BAR ================= */}
+      {step < 5 && (
+        <div className="mb-3 px-1">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+            <span className="text-teal-700 dark:text-teal-400 font-extrabold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+              {step === 1 && "1. Capture Evidence Photos"}
+              {step === 2 && "2. Select Problem Category"}
+              {step === 3 && "3. Check Duplicates"}
+              {step === 4 && "4. Review & Submit"}
+            </span>
+            <span className="text-slate-400 font-mono">Step {step} of 4</span>
+          </div>
+          <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex gap-1">
+            <div className={`h-full rounded-full transition-all duration-300 ${step >= 1 ? "bg-teal-600 flex-1" : "bg-slate-200 dark:bg-slate-800 flex-1"}`} />
+            <div className={`h-full rounded-full transition-all duration-300 ${step >= 2 ? "bg-teal-600 flex-1" : "bg-slate-200 dark:bg-slate-800 flex-1"}`} />
+            <div className={`h-full rounded-full transition-all duration-300 ${step >= 3 ? "bg-teal-600 flex-1" : "bg-slate-200 dark:bg-slate-800 flex-1"}`} />
+            <div className={`h-full rounded-full transition-all duration-300 ${step >= 4 ? "bg-teal-600 flex-1" : "bg-slate-200 dark:bg-slate-800 flex-1"}`} />
+          </div>
+        </div>
+      )}
+
+      {/* ================= STEP 1: ULTRA-MODERN CAMERA & EVIDENCE STUDIO ================= */}
       {step === 1 && (
-        <div className="relative flex-1 w-full bg-black rounded-2xl overflow-hidden flex flex-col justify-between shadow-2xl">
-          {/* Top Bar: Flash, Location Status, Cancel */}
-          <div className="relative z-20 flex items-center justify-between p-4 bg-linear-to-b from-black/80 to-transparent text-white">
+        <div className="relative flex-1 w-full bg-slate-950 text-white rounded-3xl overflow-hidden flex flex-col justify-between shadow-2xl border border-slate-800/80">
+          {/* Top Floating Glass Header */}
+          <div className="relative z-20 flex items-center justify-between p-3.5 bg-linear-to-b from-black/80 via-black/40 to-transparent">
             <button
               onClick={() => setActiveTab("my-uc")}
-              className="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md cursor-pointer"
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md cursor-pointer transition active:scale-95 text-slate-200"
+              title="Close and return to My UC"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* GPS Dot */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Location Ready (±{gpsAccuracy}m)</span>
+            {/* Pulsing GPS Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-emerald-300 font-bold truncate max-w-[150px]">
+                {activeUC.name}
+              </span>
+              <span className="text-slate-400 text-[10px]">±{gpsAccuracy}m</span>
             </div>
 
             <button
               onClick={() => setFlashOn(!flashOn)}
-              className={`p-2 rounded-full backdrop-blur-md cursor-pointer ${
-                flashOn ? "bg-amber-400 text-black" : "bg-white/20 hover:bg-white/30"
+              className={`p-2 rounded-full backdrop-blur-md cursor-pointer transition active:scale-95 ${
+                flashOn ? "bg-amber-400 text-black shadow-lg shadow-amber-400/30" : "bg-white/10 hover:bg-white/20 text-slate-200"
               }`}
+              title="Toggle Flash / Torch"
             >
-              <Zap className="w-5 h-5" />
+              <Zap className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Viewfinder Area */}
-          <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+          {/* Center Viewport */}
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden min-h-[320px]">
+            {/* Shutter flash animation overlay */}
+            {shutterFlash && (
+              <div className="absolute inset-0 z-30 bg-white animate-out fade-out duration-150" />
+            )}
+
             {cameraActive ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-300 bg-slate-900 space-y-3">
-                <div className="w-16 h-16 rounded-full bg-teal-950/80 border border-teal-500/40 flex items-center justify-center">
-                  <Camera className="w-8 h-8 text-teal-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white">Live Camera Proof</h3>
-                  <p className="text-xs text-slate-400 max-w-xs mt-1">
-                    {cameraError || "Point at the civic problem. Section 11.0c live capture only."}
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-2.5 pt-2 w-full max-w-xs">
-                  {/* Primary 1: Open Native Device Camera */}
-                  <button
-                    type="button"
-                    onClick={triggerCamera}
-                    className="w-full py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
-                  >
-                    <Camera className="w-4 h-4 text-teal-100" />
-                    <span>Open Camera</span>
-                  </button>
-
-                  {/* Primary 2: Upload From Gallery / Files */}
-                  <button
-                    type="button"
-                    onClick={triggerGallery}
-                    className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 shadow-md transition cursor-pointer flex items-center justify-center gap-2 active:scale-98"
-                  >
-                    <Upload className="w-4 h-4 text-teal-400" />
-                    <span>Upload from Gallery / Files</span>
-                  </button>
-
-                  {/* Secondary options */}
-                  <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={startCamera}
-                      disabled={isStartingCamera}
-                      className="text-slate-400 hover:text-white underline cursor-pointer"
-                    >
-                      {isStartingCamera ? "Starting Stream..." : "Try Live In-Browser"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCapture}
-                      disabled={capturedPhotos.length >= 3}
-                      className="text-teal-400 hover:text-teal-300 font-semibold cursor-pointer"
-                    >
-                      + Add Sample Angle
-                    </button>
+              /* In-browser live stream */
+              <div className="relative w-full h-full">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+                {/* Modern futuristic reticle overlay */}
+                <div className="absolute inset-8 border border-white/25 rounded-3xl pointer-events-none flex flex-col justify-between p-4">
+                  <div className="flex justify-between">
+                    <span className="w-5 h-5 border-t-2 border-l-2 border-teal-400 rounded-tl" />
+                    <span className="w-5 h-5 border-t-2 border-r-2 border-teal-400 rounded-tr" />
+                  </div>
+                  <div className="self-center w-8 h-8 rounded-full border border-teal-400/50 flex items-center justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="w-5 h-5 border-b-2 border-l-2 border-teal-400 rounded-bl" />
+                    <span className="w-5 h-5 border-b-2 border-r-2 border-teal-400 rounded-br" />
                   </div>
                 </div>
               </div>
-            )}
+            ) : capturedPhotos.length > 0 ? (
+              /* Hero preview of captured photo */
+              <div className="relative w-full h-full group">
+                <Image
+                  src={capturedPhotos[activePhotoIndex] || capturedPhotos[0]}
+                  alt={`Angle ${activePhotoIndex + 1}`}
+                  fill
+                  sizes="400px"
+                  className="object-cover"
+                />
+                {/* Photo Watermark Badge */}
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between p-2.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-teal-500/20 text-teal-300 font-bold font-mono text-[10px]">
+                      Angle {activePhotoIndex + 1} of {capturedPhotos.length}
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-medium">
+                      ✓ GPS Verified
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => removeCapturedPhoto(activePhotoIndex)}
+                    className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Retake</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Elegant Ready-To-Capture Hero */
+              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                {/* Glowing Aperture Icon */}
+                <div className="relative w-20 h-20 rounded-full bg-gradient-to-tr from-teal-500/20 via-emerald-500/10 to-transparent border border-teal-500/30 flex items-center justify-center shadow-lg shadow-teal-500/10">
+                  <Camera className="w-10 h-10 text-teal-400" />
+                  <span className="absolute inset-0 rounded-full border border-teal-400/40 animate-ping opacity-25" />
+                </div>
 
-            {/* Reticle */}
-            <div className="absolute inset-x-8 inset-y-16 border border-white/30 rounded-2xl pointer-events-none flex flex-col justify-between p-4">
-              <div className="flex justify-between">
-                <span className="w-4 h-4 border-t-2 border-l-2 border-teal-400" />
-                <span className="w-4 h-4 border-t-2 border-r-2 border-teal-400" />
+                <div className="space-y-1">
+                  <h3 className="font-extrabold text-base text-white tracking-tight">
+                    Live Civic Evidence
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                    Capture ground reality in <strong className="text-teal-400">{activeUC.name}</strong>. Stamped with live GPS coordinates.
+                  </p>
+                </div>
+
+                {/* Primary Action Buttons */}
+                <div className="w-full max-w-xs space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={triggerCamera}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-extrabold text-sm shadow-xl shadow-teal-500/25 transition-all transform active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Camera className="w-5 h-5 text-slate-950" />
+                    <span>Take Live Photo (Camera)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={triggerGallery}
+                    className="w-full py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-xs shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <ImageIcon className="w-4 h-4 text-teal-300" />
+                    <span>Choose from Device Gallery</span>
+                  </button>
+                </div>
+
+                {/* Alternative stream or test options */}
+                <div className="flex items-center gap-3 pt-2 text-[11px] text-slate-400">
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    disabled={isStartingCamera}
+                    className="hover:text-teal-300 underline cursor-pointer"
+                  >
+                    {isStartingCamera ? "Connecting..." : "Use In-Browser Live Stream"}
+                  </button>
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={addSamplePhoto}
+                    className="text-teal-400 hover:text-teal-300 font-semibold cursor-pointer"
+                  >
+                    + Add Sample Angle
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="w-4 h-4 border-b-2 border-l-2 border-teal-400" />
-                <span className="w-4 h-4 border-b-2 border-r-2 border-teal-400" />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Bottom Multi-Photo Angle Tray & Shutter Controls */}
-          <div className="relative z-20 p-3 sm:p-4 bg-linear-to-t from-black/95 via-black/85 to-transparent space-y-2.5">
-            {/* 3 Angle Preview Slots */}
+          {/* Bottom Dock: Multi-Angle Deck & Shutter */}
+          <div className="relative z-20 p-3.5 sm:p-4 bg-linear-to-t from-black via-black/90 to-transparent space-y-3">
+            {/* 3-Slot Angle Carousel */}
             <div className="grid grid-cols-3 gap-2">
               {[0, 1, 2].map((slotIdx) => {
                 const photo = capturedPhotos[slotIdx];
-                const labels = ["1. Wide Angle", "2. Hazard Close-up", "3. Context/Street"];
+                const labels = ["1. Wide Angle", "2. Close-up", "3. Landmark"];
+                const isSelected = activePhotoIndex === slotIdx;
+
                 return (
                   <div
                     key={slotIdx}
-                    className={`relative h-14 rounded-xl overflow-hidden border flex flex-col items-center justify-center p-1 text-center transition ${
+                    onClick={() => {
+                      if (photo) {
+                        setActivePhotoIndex(slotIdx);
+                      } else {
+                        triggerCamera();
+                      }
+                    }}
+                    className={`relative h-16 rounded-2xl overflow-hidden border transition-all cursor-pointer flex flex-col items-center justify-center p-1 text-center ${
                       photo
-                        ? "border-teal-400 bg-black/70 shadow-sm"
-                        : "border-dashed border-white/30 bg-white/5"
+                        ? isSelected
+                          ? "border-teal-400 ring-2 ring-teal-400/50 bg-black/80 shadow-md"
+                          : "border-slate-700 bg-black/60 opacity-80 hover:opacity-100"
+                        : "border-dashed border-white/25 bg-white/5 hover:bg-white/10"
                     }`}
                   >
                     {photo ? (
@@ -513,25 +668,28 @@ export const ReportTab: React.FC = () => {
                           src={photo}
                           alt={labels[slotIdx]}
                           fill
-                          sizes="80px"
+                          sizes="100px"
                           className="object-cover"
                         />
                         <button
                           type="button"
-                          onClick={() => removeCapturedPhoto(slotIdx)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeCapturedPhoto(slotIdx);
+                          }}
                           className="absolute top-1 right-1 p-1 rounded-full bg-black/80 text-white hover:bg-rose-600 transition cursor-pointer z-10"
-                          title="Remove photo"
+                          title="Delete photo"
                         >
                           <X className="w-3 h-3" />
                         </button>
-                        <span className="absolute bottom-0 inset-x-0 bg-black/80 text-emerald-400 text-[8px] font-bold py-0.5 truncate px-1">
+                        <span className="absolute bottom-0 inset-x-0 bg-black/80 text-teal-300 text-[8px] font-bold py-0.5 truncate px-1">
                           ✓ {labels[slotIdx]}
                         </span>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center text-white/50 space-y-0.5">
-                        <Camera className="w-3.5 h-3.5" />
-                        <span className="text-[8px] font-semibold">{labels[slotIdx]}</span>
+                      <div className="flex flex-col items-center text-white/50 space-y-1">
+                        <Plus className="w-4 h-4 text-teal-400" />
+                        <span className="text-[9px] font-semibold text-slate-300">{labels[slotIdx]}</span>
                       </div>
                     )}
                   </div>
@@ -539,32 +697,46 @@ export const ReportTab: React.FC = () => {
               })}
             </div>
 
-            {/* Shutter, Gallery, and Continue Bar */}
+            {/* Shutter Bar */}
             <div className="flex items-center justify-between gap-3 pt-1">
-              {/* Quick Gallery Upload Button */}
+              {/* Quick Gallery Picker */}
               <button
                 type="button"
                 onClick={triggerGallery}
-                className="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer transition active:scale-95 flex items-center justify-center"
-                title="Upload photo from gallery"
+                className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer transition active:scale-95"
+                title="Open Gallery"
               >
-                <Upload className="w-5 h-5 text-teal-300" />
+                <ImageIcon className="w-4 h-4 text-teal-300" />
+                <span className="text-[8px] font-bold text-slate-300">Gallery</span>
               </button>
 
-              {/* Shutter Button (Capture angle or trigger native camera) */}
+              {/* Shutter Button */}
               <button
                 type="button"
+                onClick={() => {
+                  if (cameraActive) {
+                    handleCaptureVideo();
+                  } else {
+                    triggerCamera();
+                  }
+                }}
                 disabled={capturedPhotos.length >= 3}
-                onClick={handleCapture}
-                className={`w-16 h-16 rounded-full border-4 border-white flex items-center justify-center transition cursor-pointer shadow-2xl ${
+                className={`w-18 h-18 rounded-full border-4 border-white/90 p-1 flex items-center justify-center transition-all transform active:scale-90 cursor-pointer shadow-2xl ${
                   capturedPhotos.length >= 3
-                    ? "bg-slate-600 opacity-50 cursor-not-allowed"
-                    : "bg-teal-600 hover:bg-teal-700 active:scale-95"
+                    ? "opacity-50 cursor-not-allowed bg-slate-800"
+                    : "bg-teal-500 hover:bg-teal-400 shadow-teal-500/40"
                 }`}
                 aria-label="Capture Photo"
               >
-                <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center text-teal-800 text-[10px] font-bold">
-                  {capturedPhotos.length < 3 ? `+Angle ${capturedPhotos.length + 1}` : "✓ 3/3"}
+                <div className="w-full h-full rounded-full bg-white flex flex-col items-center justify-center text-teal-900 font-extrabold text-[10px]">
+                  {capturedPhotos.length < 3 ? (
+                    <>
+                      <Camera className="w-4 h-4 text-teal-700" />
+                      <span>{capturedPhotos.length === 0 ? "Snap" : `+Angle ${capturedPhotos.length + 1}`}</span>
+                    </>
+                  ) : (
+                    <span>Ready</span>
+                  )}
                 </div>
               </button>
 
@@ -573,19 +745,20 @@ export const ReportTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-3.5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  className="h-12 px-4 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-teal-500/30 transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
                 >
-                  <span>Continue</span>
+                  <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={triggerCamera}
-                  className="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white cursor-pointer transition active:scale-95"
-                  title="Open device camera"
+                  onClick={addSamplePhoto}
+                  className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer transition active:scale-95"
+                  title="Add Quick Sample Angle"
                 >
-                  <Camera className="w-5 h-5" />
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span className="text-[8px] font-bold text-slate-300">Demo</span>
                 </button>
               )}
             </div>
@@ -593,41 +766,54 @@ export const ReportTab: React.FC = () => {
         </div>
       )}
 
-      {/* ================= STEP 2: CATEGORY PICKER (3x4 Grid with Icons) ================= */}
+      {/* ================= STEP 2: CATEGORY PICKER ================= */}
       {step === 2 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="space-y-3.5 animate-in fade-in duration-150">
+          {/* Header */}
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setStep(1)}
-              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer transition active:scale-95"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                What&apos;s the civic problem?
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+                What is the civic problem?
               </h2>
-              <p className="text-xs text-slate-400">
-                Select 1 of 12 categories for {activeUC.name}
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Choose 1 of 12 categories for {activeUC.name}
               </p>
             </div>
           </div>
 
-          {/* 3x4 Icon Grid with Genuine Lucide Icons */}
-          <div className="grid grid-cols-3 gap-2.5">
-            {CIVIC_CATEGORIES.map((cat) => (
+          {/* Search Filter */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={categorySearch}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              placeholder="Search category (e.g. gutter, streetlight, garbage)..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500 shadow-xs"
+            />
+          </div>
+
+          {/* 3x4 Icon Grid */}
+          <div className="grid grid-cols-3 gap-2.5 max-h-[52vh] overflow-y-auto pr-0.5">
+            {filteredCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleSelectCategory(cat.id)}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500 hover:shadow-md transition text-center cursor-pointer active:scale-95 group"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500 hover:shadow-lg hover:shadow-teal-500/10 transition-all text-center cursor-pointer active:scale-95 group"
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center mb-2 transition group-hover:scale-110 shadow-xs"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2 transition-transform duration-200 group-hover:scale-110 shadow-xs"
                   style={{ backgroundColor: cat.bgTint, color: cat.color }}
                 >
                   {getCategoryIcon(cat.iconName)}
                 </div>
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
                   {cat.name.en}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium mt-0.5">
@@ -641,19 +827,19 @@ export const ReportTab: React.FC = () => {
 
       {/* ================= STEP 3: DUPLICATE DETECTION ================= */}
       {step === 3 && matchingDuplicate && (
-        <div className="space-y-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl">
-          <div className="flex items-center gap-2 text-amber-600">
+        <div className="space-y-4 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
             <AlertTriangle className="w-5 h-5 shrink-0" />
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
               Is this the same issue?
             </h3>
           </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            A neighbor already reported a similar problem within 50 meters of your location:
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            A neighbor already reported a similar problem within 50 meters of your current location:
           </p>
 
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-            <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
               <Image
                 src={matchingDuplicate.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop"}
                 alt="Duplicate preview"
@@ -667,7 +853,7 @@ export const ReportTab: React.FC = () => {
                 #{matchingDuplicate.id} · {matchingDuplicate.title}
               </div>
               <div className="text-[11px] text-slate-400 mt-0.5">
-                {matchingDuplicate.affectedCount} residents already affected · {matchingDuplicate.daysOpen} days open
+                {matchingDuplicate.affectedCount} residents affected · {matchingDuplicate.daysOpen} days open
               </div>
             </div>
           </div>
@@ -680,14 +866,14 @@ export const ReportTab: React.FC = () => {
                 setActiveTab("my-uc");
                 showToast("Added as affected! Your evidence strengthens this report.");
               }}
-              className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs shadow-lg shadow-teal-600/30 transition cursor-pointer"
             >
               Yes, Add Me as Affected (Me Too)
             </button>
 
             <button
               onClick={() => setStep(4)}
-              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
             >
               No, This is a Separate Issue
             </button>
@@ -697,40 +883,46 @@ export const ReportTab: React.FC = () => {
 
       {/* ================= STEP 4: REVIEW & DETAILS ================= */}
       {step === 4 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="space-y-3.5 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setStep(2)}
-              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer transition active:scale-95"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Review &amp; Confirm
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+                Review &amp; Submit
               </h2>
-              <p className="text-xs text-slate-400">
-                Submitting to {activeUC.name} Scorecard
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Logging directly into {activeUC.name} Report Card
               </p>
             </div>
           </div>
 
-          {/* Photo & Location Banner */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-800 space-y-3">
-            {/* Multi-Photo Angle Preview Strip */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                <span>Evidence Angles ({capturedPhotos.length} Captured)</span>
-                <span className="text-[10px] text-teal-600 font-mono">✓ EXIF Stripped · GPS Watermarked</span>
+          {/* Dossier Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3.5">
+            {/* Multi-Photo Carousel */}
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <span>Evidence Angles ({capturedPhotos.length})</span>
+                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-mono">
+                  ✓ EXIF Stripped · GPS Watermarked
+                </span>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {capturedPhotos.map((photo, pIdx) => (
-                  <div key={pIdx} className="relative w-24 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
+                  <div
+                    key={pIdx}
+                    className="relative w-28 h-22 rounded-2xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs"
+                  >
                     <Image
                       src={photo}
                       alt={`Angle ${pIdx + 1}`}
                       fill
-                      sizes="96px"
+                      sizes="112px"
                       className="object-cover"
                     />
                     <span className="absolute bottom-0 inset-x-0 bg-black/80 text-teal-300 text-[9px] font-bold text-center py-0.5">
@@ -741,9 +933,10 @@ export const ReportTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+            {/* Location & Category Badges */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
               <div className="space-y-0.5">
-                <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                   {CIVIC_CATEGORIES.find((c) => c.id === selectedCategory)?.name.en}
                 </span>
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
@@ -753,35 +946,35 @@ export const ReportTab: React.FC = () => {
               </div>
 
               <div className="flex flex-col items-end gap-1">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
                   ✓ {compressedSizeKb} KB WebP (&lt;200KB)
                 </span>
                 <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
                   <UploadCloud className="w-3 h-3 text-teal-600" />
-                  <span>Encrypted Storage</span>
+                  <span>Cloudflare R2 Storage</span>
                 </span>
               </div>
             </div>
 
-            {/* Description */}
+            {/* Optional Description */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Optional Short Note (Urdu, Roman Urdu or English)
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Short Description (Urdu, Roman Urdu or English)
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value.slice(0, 280))}
                 rows={2}
                 placeholder="e.g. Disco Bakery ke samne gutter ubal raha hai..."
-                className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
               />
-              <div className="text-right text-[10px] text-slate-400">
+              <div className="text-right text-[10px] text-slate-400 mt-1">
                 {280 - description.length} chars left
               </div>
             </div>
 
             {/* Dangerous Toggle */}
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600" />
                 <div>
@@ -802,9 +995,10 @@ export const ReportTab: React.FC = () => {
             </div>
 
             {/* Post Anonymously */}
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <span className="text-slate-600 dark:text-slate-400">
-                Post anonymously (Hides name publicly)
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
+              <span className="text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                <EyeOff className="w-3.5 h-3.5 text-slate-500" />
+                <span>Post Anonymously (Hides Name)</span>
               </span>
               <input
                 type="checkbox"
@@ -819,11 +1013,11 @@ export const ReportTab: React.FC = () => {
           <button
             onClick={handleSubmitIssue}
             disabled={isUploadingToR2}
-            className="w-full py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-lg shadow-teal-700/25 transition cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-extrabold text-sm shadow-xl shadow-teal-600/30 transition-all transform active:scale-98 cursor-pointer flex items-center justify-center gap-2"
           >
             {isUploadingToR2 ? (
               <span className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>Uploading photos &amp; submitting report...</span>
               </span>
             ) : (
@@ -833,10 +1027,10 @@ export const ReportTab: React.FC = () => {
         </div>
       )}
 
-      {/* ================= STEP 5: SUCCESS & SHARE CARD ================= */}
+      {/* ================= STEP 5: SUCCESS & VIRAL SHARE CARD ================= */}
       {step === 5 && (
-        <div className="p-6 text-center space-y-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 mx-auto flex items-center justify-center">
+        <div className="p-5 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <CheckCircle className="w-10 h-10" />
           </div>
 
@@ -844,35 +1038,64 @@ export const ReportTab: React.FC = () => {
             <div className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400">
               #{createdIssueId}
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
               Reported Successfully!
             </h2>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               This issue has been logged into {activeUC.name}&apos;s public report card.
             </p>
           </div>
 
-          {/* Action Hint */}
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-left text-xs space-y-1 border border-slate-100 dark:border-slate-700">
-            <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5 text-teal-600" />
-              <span>Next Steps to Drive Speed</span>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Share this link with your neighbors on WhatsApp to tap &quot;Me Too&quot;. High affected counts increase issue weight on the Chairman&apos;s score.
-            </p>
+          {/* Dynamic OG Share Card Preview */}
+          <div className="relative w-full aspect-1200/630 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 shadow-inner">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/og?id=${encodeURIComponent(createdIssueId)}&title=${encodeURIComponent(description || "Civic issue reported")}&uc=${encodeURIComponent(activeUC.name)}&town=${encodeURIComponent(activeUC.townName)}&daysOpen=0&affected=1&official=${encodeURIComponent(activeUC.chairman.name)}&status=open`}
+              alt="Civic Accountability Card"
+              className="w-full h-full object-cover"
+            />
           </div>
 
-          {/* Share Button (Virality Engine) */}
-          <div className="space-y-2 pt-2">
+          {/* Share Channels */}
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                `🚨 *Karachi Civic Alert* (${activeUC.name})\n"${description || "Civic problem reported"}" has been reported.\n\nResponsible: ${activeUC.chairman.name} (${activeUC.chairman.seatTitle})\nTrack on Karachi Civic: ${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${createdIssueId}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] font-bold text-xs text-white shadow-md transition"
+            >
+              <span>💬 WhatsApp</span>
+            </a>
+
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                `🚨 Civic Alert in #Karachi: Issue #${createdIssueId} reported in ${activeUC.name}. Holding @KarachiCivic officials accountable.`
+              )}&url=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${createdIssueId}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-xs text-white border border-slate-700 shadow-md transition"
+            >
+              <span>𝕏 Post on Twitter</span>
+            </a>
+          </div>
+
+          <div className="flex gap-2">
             <button
               onClick={() => {
-                showToast("Share card generated! Link copied to clipboard.");
+                const shareUrl = `${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${createdIssueId}`;
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(shareUrl);
+                  setCopiedLink(true);
+                  showToast("Issue link copied to clipboard!");
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }
               }}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 cursor-pointer transition"
             >
-              <Share2 className="w-4 h-4" />
-              <span>Share Card on WhatsApp</span>
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? "Copied Link" : "Copy Link"}</span>
             </button>
 
             <button
@@ -882,9 +1105,9 @@ export const ReportTab: React.FC = () => {
                 setDescription("");
                 setActiveTab("my-uc");
               }}
-              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer"
             >
-              Return to My UC Feed
+              Return to Feed
             </button>
           </div>
         </div>
