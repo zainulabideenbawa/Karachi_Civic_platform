@@ -139,10 +139,10 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<NavTab>("my-uc");
   const [allUCs, setAllUCs] = useState<UC[]>(MOCK_UCS);
   const [activeUC, setActiveUC] = useState<UC>(MOCK_UCS[0]); // UC-7 Gulshan
-  const [allTowns] = useState<Town[]>(MOCK_TOWNS);
+  const [allTowns, setAllTowns] = useState<Town[]>(MOCK_TOWNS);
   const [issues, setIssues] = useState<Issue[]>(MOCK_ISSUES);
   const [events, setEvents] = useState<CivicEvent[]>(MOCK_EVENTS);
-  const [promises] = useState<PromiseRecord[]>(MOCK_PROMISES);
+  const [promises, setPromises] = useState<PromiseRecord[]>(MOCK_PROMISES);
   const [polls, setPolls] = useState<PollRecord[]>(MOCK_POLLS);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(MOCK_AUDIT_LOG);
 
@@ -178,11 +178,104 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isFindMyUCOpen, setIsFindMyUCOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
-  // Sync with Supabase on mount
+  // Sync with Supabase on mount (Hydrate all civic seed & live data from Postgres)
   useEffect(() => {
     async function loadFromSupabase() {
       try {
-        // Fetch issues from Supabase
+        // 1. Fetch Towns from Supabase
+        const { data: dbTowns } = await supabase
+          .from("towns")
+          .select("*")
+          .order("rank", { ascending: true });
+
+        if (dbTowns && dbTowns.length > 0) {
+          setAllTowns(
+            dbTowns.map((t) => ({
+              id: t.id,
+              name: t.name,
+              slug: t.slug,
+              district: t.district,
+              totalUcs: t.total_ucs,
+              teamScore: Number(t.team_score),
+              rank: t.rank,
+              townChairmanName: t.town_chairman_name,
+              townChairmanPhoto: t.town_chairman_photo,
+              townChairmanParty: t.town_chairman_party,
+            }))
+          );
+        }
+
+        // 2. Fetch UCs joined with Officials from Supabase
+        const { data: dbUCs } = await supabase
+          .from("ucs")
+          .select("*, officials(*)")
+          .order("city_rank", { ascending: true });
+
+        if (dbUCs && dbUCs.length > 0) {
+          const mappedUCs: UC[] = dbUCs.map((u) => {
+            const off = u.officials && u.officials[0];
+            return {
+              id: u.id,
+              townId: u.town_id,
+              townName: u.town_name,
+              number: u.number,
+              name: u.name,
+              slug: u.slug,
+              neighborhoods: u.neighborhoods || [],
+              lat: Number(u.lat),
+              lng: Number(u.lng),
+              score: Number(u.score),
+              cityRank: u.city_rank,
+              townRank: u.town_rank,
+              trend30d: Number(u.trend_30d),
+              totalEligibleIssues: u.total_eligible_issues,
+              resolvedIssues: u.resolved_issues,
+              oldestOpenDays: u.oldest_open_days,
+              hasEnoughData: u.has_enough_data,
+              chairman: off
+                ? {
+                    id: off.id,
+                    name: off.name,
+                    slug: off.slug,
+                    seatTitle: off.seat_title,
+                    photo: off.photo,
+                    party: off.party,
+                    officeContact: off.office_contact,
+                    termStart: off.term_start,
+                    termEnd: off.term_end,
+                    isClaimed: off.is_claimed,
+                    badges: off.badges || [],
+                    promisesKept: off.promises_kept,
+                    promisesTotal: off.promises_total,
+                    eventsHeld: off.events_held,
+                    thankYouCount: off.thank_you_count,
+                    fixSatisfaction: Number(off.fix_satisfaction),
+                  }
+                : {
+                    id: `off-${u.id}`,
+                    name: "UC Chairman",
+                    slug: `chairman-${u.slug}`,
+                    seatTitle: `Chairman, ${u.name}`,
+                    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+                    party: "Independent",
+                    officeContact: "021-34988712",
+                    termStart: "2023-06-15",
+                    termEnd: "2027-06-15",
+                    isClaimed: false,
+                    badges: [],
+                    promisesKept: 0,
+                    promisesTotal: 0,
+                    eventsHeld: 0,
+                    thankYouCount: 0,
+                    fixSatisfaction: 4.0,
+                  },
+            };
+          });
+          setAllUCs(mappedUCs);
+          setActiveUC((prev) => mappedUCs.find((u) => u.id === prev.id) || mappedUCs[0]);
+        }
+
+        // 3. Fetch Issues joined with Photos from Supabase
         const { data: dbIssues, error: issueErr } = await supabase
           .from("issues")
           .select("*, issue_photos(*)")
@@ -215,6 +308,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
             eligible: row.eligible,
             affectedCount: row.affected_count,
             weightedAffected: Number(row.weighted_affected),
+            adoptedByType: row.adopted_by_type,
+            adoptedById: row.adopted_by_id,
+            adoptedByName: row.adopted_by_name,
+            adoptedAt: row.adopted_at,
+            targetDate: row.target_date,
             photos: (row.issue_photos || [])
               .filter((p: { kind: string }) => p.kind === "report")
               .map((p: { id: string; kind: "report"; url: string; captured_at: string; lat: number; lng: number; uploader_name?: string }) => ({
@@ -239,12 +337,111 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
               })),
             officialResponse: row.official_response,
             confirmationWindow: row.confirmation_window,
+            jurisdictionFlag: row.jurisdiction_flag,
           }));
 
           setIssues(mappedIssues);
         }
 
-        // Fetch audit log
+        // 4. Fetch Events from Supabase
+        const { data: dbEvents } = await supabase
+          .from("events")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (dbEvents && dbEvents.length > 0) {
+          setEvents(
+            dbEvents.map((ev) => ({
+              id: ev.id,
+              title: ev.title,
+              type: ev.type,
+              date: ev.date_str,
+              time: ev.time_str,
+              locationName: ev.location_name,
+              ucId: ev.uc_id,
+              ucName: ev.uc_name,
+              organizerName: ev.organizer_name,
+              organizerRole: ev.organizer_role,
+              description: ev.description,
+              rsvpCount: ev.rsvp_count,
+              isUserRsvpd: false,
+              isVerified: ev.is_verified,
+              proofPhotos: ev.proof_photos || [],
+            }))
+          );
+        }
+
+        // 5. Fetch Promises from Supabase
+        const { data: dbPromises } = await supabase
+          .from("promises")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (dbPromises && dbPromises.length > 0) {
+          setPromises(
+            dbPromises.map((pr) => ({
+              id: pr.id,
+              officialId: pr.official_id,
+              officialName: pr.official_name,
+              ucName: pr.uc_name,
+              text: pr.text,
+              source: pr.source,
+              dateMade: pr.date_made,
+              dueDate: pr.due_date,
+              status: pr.status,
+              proofPhoto: pr.proof_photo || undefined,
+              ownerType: pr.owner_type || "official",
+              ownerId: pr.owner_id || pr.official_id,
+            }))
+          );
+        }
+
+        // 6. Fetch Community Leaders from Supabase
+        const { data: dbLeaders } = await supabase
+          .from("community_leaders")
+          .select("*")
+          .order("score", { ascending: false });
+
+        if (dbLeaders && dbLeaders.length > 0) {
+          setCommunityLeaders(
+            dbLeaders.map((lead, idx) => ({
+              id: lead.id,
+              userId: lead.user_id || `user-${lead.slug}`,
+              ucId: lead.uc_id || "uc-gulshan-7",
+              ucName: "UC-7 Gulshan (NIPA / Block 13)",
+              townId: "town-gulshan",
+              townName: "Gulshan Town",
+              realName: lead.real_name,
+              slug: lead.slug,
+              photoUrl: lead.photo_url,
+              bio: lead.bio || "",
+              whyServe: lead.why_serve || "",
+              party: lead.party || "Independent",
+              plansToContest: (lead.plans_to_contest as "yes" | "no" | "prefer_not_to_say") || "yes",
+              identityVerified: !!lead.identity_verified_at,
+              identityVerifiedAt: lead.identity_verified_at || "",
+              status: (lead.status as CommunityLeader["status"]) || "active",
+              strikes: lead.strikes || 0,
+              score: Number(lead.score) || 70,
+              rankInUc: idx + 1,
+              rankInTown: idx + 1,
+              rankInCity: idx + 1,
+              trend30d: 0,
+              hasEnoughData: true,
+              activeAdoptionsCount: 1,
+              resolvedCountLifetime: 2,
+              onTimeRate: 100,
+              eventsCount: 1,
+              pledgesKept: 2,
+              pledgesTotal: 2,
+              thankYouCount: 45,
+              fixSatisfaction: 4.8,
+              teamMembers: [],
+            }))
+          );
+        }
+
+        // 7. Fetch Audit Log from Supabase
         const { data: dbLogs } = await supabase
           .from("audit_log")
           .select("*")
@@ -554,7 +751,8 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     // Persist to Supabase asynchronously
     (async () => {
       try {
-        await supabase.from("issues").insert({
+        // Insert issue into Supabase
+        const { error: issueErr } = await supabase.from("issues").insert({
           id,
           uc_id: fullIssue.ucId,
           uc_name: fullIssue.ucName,
@@ -562,6 +760,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
           town_name: fullIssue.townName,
           category_id: fullIssue.categoryId,
           category_name: fullIssue.categoryName,
+          sub_category: fullIssue.subCategory,
           title: fullIssue.title,
           description: fullIssue.description,
           lat: fullIssue.lat,
@@ -578,9 +777,14 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
           weighted_affected: 1.0,
         });
 
+        if (issueErr) {
+          console.error("Supabase issue insert error:", issueErr);
+        }
+
+        // Insert photos into Supabase
         if (fullIssue.photos.length > 0) {
           const photoInserts = fullIssue.photos.map((p, idx) => ({
-            id: `p-${id}-${idx}`,
+            id: `p-${id}-${idx}-${Date.now()}`,
             issue_id: id,
             kind: "report",
             url: p.url,
@@ -590,6 +794,32 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
           }));
           await supabase.from("issue_photos").insert(photoInserts);
         }
+
+        // Update UC stats in Supabase Postgres
+        const targetUC = allUCs.find((u) => u.id === fullIssue.ucId);
+        const newTotal = (targetUC?.totalEligibleIssues || 0) + 1;
+        const newScore = Math.max(
+          0,
+          Math.min(100, (targetUC?.score || 50) - (fullIssue.severity === "dangerous" ? 0.8 : 0.4))
+        );
+
+        await supabase
+          .from("ucs")
+          .update({
+            total_eligible_issues: newTotal,
+            score: Number(newScore.toFixed(1)),
+          })
+          .eq("id", fullIssue.ucId);
+
+        // Record public audit trail entry in Supabase
+        await supabase.from("audit_log").insert({
+          id: `log-${Date.now()}`,
+          date_str: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          actor: fullIssue.reporterName,
+          action: "Issue Reported",
+          affected_entity: `${fullIssue.ucName} (${id})`,
+          reason: `New ${fullIssue.severity} issue filed under ${fullIssue.categoryName}`,
+        });
       } catch (err: unknown) {
         console.warn("Supabase issue insert warning:", err);
       }
