@@ -1133,14 +1133,30 @@ export const ReportTab: React.FC = () => {
 
             <button
               onClick={() => {
+                const found = issues.find((i) => i.id === createdIssueId);
+                if (found) {
+                  setSelectedIssue(found);
+                }
+                setStep(1);
+                setCapturedPhotos([]);
+                setDescription("");
+              }}
+              className="flex-1 py-2.5 px-3 rounded-2xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-teal-700/20"
+            >
+              <span>View Report</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={() => {
                 setStep(1);
                 setCapturedPhotos([]);
                 setDescription("");
                 setActiveTab("my-uc");
               }}
-              className="flex-1 py-2.5 px-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition cursor-pointer"
+              className="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
             >
-              Return to Feed
+              Feed
             </button>
           </div>
         </div>

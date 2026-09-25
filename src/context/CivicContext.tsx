@@ -162,6 +162,7 @@ interface CivicContextType {
   applyBecomeLeader: (data: { realName: string; photoUrl: string; bio: string; whyServe: string; party: string; plansToContest: "yes" | "no" | "prefer_not_to_say"; ucId: string }) => void;
   followLeader: (leaderId: string) => void;
   addCommentToIssue: (issueId: string, body: string, customAuthorName?: string) => void;
+  resetDemoData: () => void;
   
   // Toasts with Undo
   toast: ToastMessage | null;
@@ -220,6 +221,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>(MOCK_MANAGED_USERS);
   const [officialVerificationClaims, setOfficialVerificationClaims] = useState<OfficialVerificationClaim[]>(MOCK_OFFICIAL_CLAIMS);
   const [jurisdictionDisputes, setJurisdictionDisputes] = useState<JurisdictionDispute[]>(MOCK_JURISDICTION_DISPUTES);
+  const [hasHydrated, setHasHydrated] = useState<boolean>(false);
 
   const openWorkDoneShare = (issue: Issue) => {
     setWorkDoneShareIssue(issue);
@@ -659,6 +661,83 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
     loadFromSupabase();
   }, []);
+
+  // Hydrate local cache on browser mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedIssues = localStorage.getItem("karachi_civic_issues_v2");
+      if (storedIssues) {
+        const parsed = JSON.parse(storedIssues);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setIssues(parsed);
+        }
+      }
+      const storedRole = localStorage.getItem("karachi_civic_role_v2");
+      if (
+        storedRole &&
+        ["citizen", "official", "ngo", "community_leader", "admin", "visitor", "verified_resident"].includes(
+          storedRole
+        )
+      ) {
+        setActiveRole(storedRole as UserRole);
+      }
+      const storedUcId = localStorage.getItem("karachi_civic_uc_id_v2");
+      if (storedUcId) {
+        const found = allUCs.find((u) => u.id === storedUcId);
+        if (found) setActiveUC(found);
+      }
+    } catch (e) {
+      console.warn("Could not hydrate from localStorage:", e);
+    } finally {
+      setHasHydrated(true);
+    }
+  }, [allUCs]);
+
+  // Persist issues on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_issues_v2", JSON.stringify(issues));
+    } catch (e) {
+      console.warn("Could not save issues to localStorage:", e);
+    }
+  }, [issues, hasHydrated]);
+
+  // Persist active role on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_role_v2", activeRole);
+    } catch (e) {
+      console.warn("Could not save role to localStorage:", e);
+    }
+  }, [activeRole, hasHydrated]);
+
+  // Persist active UC on change
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") return;
+    try {
+      localStorage.setItem("karachi_civic_uc_id_v2", activeUC.id);
+    } catch (e) {
+      console.warn("Could not save active UC to localStorage:", e);
+    }
+  }, [activeUC, hasHydrated]);
+
+  const resetDemoData = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("karachi_civic_issues_v2");
+      localStorage.removeItem("karachi_civic_role_v2");
+      localStorage.removeItem("karachi_civic_uc_id_v2");
+    }
+    setIssues(MOCK_ISSUES);
+    setActiveRole("citizen");
+    setActiveUC(MOCK_UCS[0]);
+    setManagedUsers(MOCK_MANAGED_USERS);
+    setOfficialVerificationClaims(MOCK_OFFICIAL_CLAIMS);
+    setJurisdictionDisputes(MOCK_JURISDICTION_DISPUTES);
+    showToast("Demo data reset to factory initial state!");
+  };
 
   // Browser online/offline event listener (Section 11.6)
   useEffect(() => {
@@ -1644,6 +1723,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         resolveJurisdictionDispute,
         adoptNGOIssue,
         resolveNGOIssue,
+        resetDemoData,
       }}
     >
       {children}

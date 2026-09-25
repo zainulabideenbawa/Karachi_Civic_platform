@@ -25,6 +25,7 @@ import {
   Ban,
   AlertTriangle,
   Scale,
+  RotateCcw,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -50,6 +51,7 @@ export const MeTab: React.FC = () => {
     showToast,
     language,
     setLanguage,
+    resetDemoData,
   } = useCivic();
 
   const myReports = issues.filter((i) => i.reporterId === "user-101");
@@ -800,15 +802,26 @@ export const MeTab: React.FC = () => {
       </section>
 
       {/* Logout / Switch Device */}
-      <button
-        onClick={() => {
-          setIsWhatsAppAuthOpen(true);
-        }}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
-      >
-        <LogOut className="w-4 h-4" />
-        <span>Switch Account / Reverse WhatsApp Login</span>
-      </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button
+          onClick={() => {
+            setIsWhatsAppAuthOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Switch Account / WhatsApp</span>
+        </button>
+
+        <button
+          onClick={resetDemoData}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-bold transition cursor-pointer"
+          title="Clear localStorage and reset to initial demo data"
+        >
+          <RotateCcw className="w-4 h-4" />
+          <span>Reset Demo Data</span>
+        </button>
+      </div>
     </div>
   );
 };
