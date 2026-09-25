@@ -21,6 +21,8 @@ export const Header: React.FC = () => {
     setIsFindMyUCOpen,
     setIsOnboardingOpen,
     showToast,
+    language,
+    setLanguage,
   } = useCivic();
 
   const [isUcMenuOpen, setIsUcMenuOpen] = useState(false);
@@ -145,6 +147,43 @@ export const Header: React.FC = () => {
           >
             <HelpCircle className="w-4 h-4 text-teal-600" />
           </button>
+
+          {/* Language Switcher (Section 11.4: Urdu, Roman Urdu, English) */}
+          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <button
+              onClick={() => setLanguage("en")}
+              className={`px-1.5 py-0.5 rounded-lg transition cursor-pointer ${
+                language === "en"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              }`}
+              title="English"
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage("ur_roman")}
+              className={`px-1.5 py-0.5 rounded-lg transition cursor-pointer ${
+                language === "ur_roman"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              }`}
+              title="Roman Urdu"
+            >
+              Rom
+            </button>
+            <button
+              onClick={() => setLanguage("ur")}
+              className={`px-1.5 py-0.5 rounded-lg transition cursor-pointer font-sans ${
+                language === "ur"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              }`}
+              title="Urdu"
+            >
+              اردو
+            </button>
+          </div>
 
           {/* User Profile Avatar Pill (Goes to MeTab) */}
           <button

@@ -18,6 +18,8 @@ import {
   Building2,
   Shield,
   Check,
+  Globe,
+  Bell,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -35,6 +37,8 @@ export const MeTab: React.FC = () => {
     setIsAdminConsoleOpen,
     setIsNGOsModalOpen,
     showToast,
+    language,
+    setLanguage,
   } = useCivic();
 
   const myReports = issues.filter((i) => i.reporterId === "user-101");
@@ -163,6 +167,80 @@ export const MeTab: React.FC = () => {
 
       {/* 3. Settings & Preferences */}
       <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+        {/* Language Selection (Section 11.4: Urdu, Roman Urdu, English) */}
+        <div className="p-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Globe className="w-4 h-4 text-teal-600" />
+            <div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Language &amp; Script
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Choose UI language (Urdu RTL supported)
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+            <button
+              onClick={() => {
+                setLanguage("en");
+                showToast("Switched language to English");
+              }}
+              className={`px-2 py-1 rounded-lg transition cursor-pointer ${
+                language === "en"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => {
+                setLanguage("ur_roman");
+                showToast("Switched language to Roman Urdu");
+              }}
+              className={`px-2 py-1 rounded-lg transition cursor-pointer ${
+                language === "ur_roman"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Roman
+            </button>
+            <button
+              onClick={() => {
+                setLanguage("ur");
+                showToast("اردو زبان منتخب کی گئی (Urdu RTL)");
+              }}
+              className={`px-2 py-1 rounded-lg transition cursor-pointer font-sans ${
+                language === "ur"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              اردو
+            </button>
+          </div>
+        </div>
+
+        {/* Notifications (Section 12.1) */}
+        <div className="p-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Bell className="w-4 h-4 text-teal-600" />
+            <div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Civic Notifications
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Instant alerts when your reported fixes are ready
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+            Enabled (Web Push)
+          </span>
+        </div>
+
         {/* Home Union Council */}
         <div className="p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
