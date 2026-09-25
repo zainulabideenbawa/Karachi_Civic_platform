@@ -30,6 +30,7 @@ export const RankingsTab: React.FC = () => {
     setIsLeaderProfileOpen,
     setIsBecomeLeaderOpen,
     setSelectedOfficial,
+    activeRole,
     showToast,
   } = useCivic();
 
@@ -182,12 +183,14 @@ export const RankingsTab: React.FC = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setIsBecomeLeaderOpen(true)}
-            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer"
-          >
-            + Apply as Leader
-          </button>
+          {(activeRole === "citizen" || !activeRole) && (
+            <button
+              onClick={() => setIsBecomeLeaderOpen(true)}
+              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer"
+            >
+              + Apply as Leader
+            </button>
+          )}
         </div>
       )}
 

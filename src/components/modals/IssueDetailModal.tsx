@@ -46,6 +46,7 @@ export const IssueDetailModal: React.FC = () => {
     addOfficialResponse,
     officialMarkResolved,
     flagJurisdiction,
+    openWorkDoneShare,
   } = useCivic();
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -190,9 +191,19 @@ export const IssueDetailModal: React.FC = () => {
           <div className="flex items-center gap-1.5">
             {/* Share Card Trigger */}
             <button
-              onClick={() => setShowShareModal(true)}
+              onClick={() => {
+                if (
+                  selectedIssue.status === "marked_resolved" ||
+                  selectedIssue.status === "confirmed" ||
+                  hasAfterPhoto
+                ) {
+                  openWorkDoneShare(selectedIssue);
+                } else {
+                  setShowShareModal(true);
+                }
+              }}
               className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              title="Share Viral Card"
+              title={hasAfterPhoto ? "Share Work Done Proof" : "Share Civic Card"}
             >
               <Share2 className="w-4 h-4 text-teal-600" />
             </button>
@@ -280,15 +291,26 @@ export const IssueDetailModal: React.FC = () => {
               </div>
             )}
 
-            {/* Toggle Before/After Slider if after-photo is present */}
+            {/* Action buttons if after-photo is present */}
             {hasAfterPhoto && (
-              <button
-                onClick={() => setShowSlider(!showSlider)}
-                className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 text-xs font-bold px-2.5 py-1 rounded-md shadow-md backdrop-blur-xs cursor-pointer"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-teal-600" />
-                <span>{showSlider ? "Standard View" : "Before/After Slider"}</span>
-              </button>
+              <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                <button
+                  type="button"
+                  onClick={() => openWorkDoneShare(selectedIssue)}
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold px-3 py-1.5 rounded-lg shadow-lg shadow-emerald-950/40 cursor-pointer transition active:scale-95"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-white" />
+                  <span>Share Work Done</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSlider(!showSlider)}
+                  className="flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-md backdrop-blur-xs cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-teal-600" />
+                  <span>{showSlider ? "Standard" : "Slider"}</span>
+                </button>
+              </div>
             )}
           </div>
 

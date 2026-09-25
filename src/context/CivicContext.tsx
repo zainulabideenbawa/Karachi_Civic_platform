@@ -102,6 +102,11 @@ interface CivicContextType {
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
   
+  // Work Done Sharing
+  workDoneShareIssue: Issue | null;
+  setWorkDoneShareIssue: (issue: Issue | null) => void;
+  openWorkDoneShare: (issue: Issue) => void;
+  
   // Actions
   toggleAffected: (issueId: string) => void;
   voteConfirmation: (
@@ -177,6 +182,11 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isIdeasModalOpen, setIsIdeasModalOpen] = useState(false);
   const [isFindMyUCOpen, setIsFindMyUCOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [workDoneShareIssue, setWorkDoneShareIssue] = useState<Issue | null>(null);
+
+  const openWorkDoneShare = (issue: Issue) => {
+    setWorkDoneShareIssue(issue);
+  };
 
   // Sync with Supabase on mount (Hydrate all civic seed & live data from Postgres)
   useEffect(() => {
@@ -935,6 +945,28 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       })
       .eq("id", issueId);
 
+    // Automatically open Work Done sharing modal for Chairman to post on social platforms
+    const targetIss = issues.find((i) => i.id === issueId);
+    if (targetIss) {
+      setWorkDoneShareIssue({
+        ...targetIss,
+        status: "marked_resolved",
+        afterPhotos: [
+          {
+            id: `p-after-${Date.now()}`,
+            kind: "after",
+            url: afterPhotoUrl,
+            capturedAt: new Date().toISOString(),
+            lat: targetIss.lat,
+            lng: targetIss.lng,
+            uploaderName: `${activeUC.chairman.seatTitle} Inspection Team`,
+          },
+        ],
+        officialResponse: respObj,
+        confirmationWindow: confirmObj,
+      });
+    }
+
     supabase.from("issue_photos").insert({
       id: `p-after-${Date.now()}`,
       issue_id: issueId,
@@ -1334,6 +1366,9 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setIsFindMyUCOpen,
         isOnboardingOpen,
         setIsOnboardingOpen,
+        workDoneShareIssue,
+        setWorkDoneShareIssue,
+        openWorkDoneShare,
         toggleAffected,
         voteConfirmation,
         addNewIssue,

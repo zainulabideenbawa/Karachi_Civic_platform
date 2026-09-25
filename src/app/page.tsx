@@ -28,6 +28,7 @@ import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
 import { OnboardingModal } from "@/components/modals/OnboardingModal";
 import { OfficialProfileModal } from "@/components/modals/OfficialProfileModal";
 import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
+import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
 import { RoleBanner } from "@/components/RoleBanner";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
 
@@ -85,6 +86,7 @@ function CivicAppContent() {
         isOpen={isRoleSwitcherOpen}
         onClose={() => setIsRoleSwitcherOpen(false)}
       />
+      <WorkDoneShareModal />
     </div>
   );
 }

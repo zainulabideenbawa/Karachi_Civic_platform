@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const official = searchParams.get("official") || "Faisal Siddiqui";
     const status = searchParams.get("status") || "open";
 
-    const isFixed = status === "confirmed";
+    const isFixed = status === "confirmed" || status === "marked_resolved" || status === "resolved";
 
     return new ImageResponse(
       (
@@ -57,7 +57,11 @@ export async function GET(req: NextRequest) {
                 fontWeight: "bold",
               }}
             >
-              {isFixed ? "FIXED & CONFIRMED" : `${daysOpen} DAYS OPEN`}
+              {isFixed
+                ? status === "confirmed"
+                  ? "✓ FIXED & CONFIRMED"
+                  : "✓ WORK COMPLETED & RESOLVED"
+                : `${daysOpen} DAYS OPEN`}
             </div>
           </div>
 
@@ -82,7 +86,9 @@ export async function GET(req: NextRequest) {
             }}
           >
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontSize: "16px", color: "#94a3b8" }}>Responsible Official</span>
+              <span style={{ fontSize: "16px", color: "#94a3b8" }}>
+                {isFixed ? "Work Completed By" : "Responsible Official"}
+              </span>
               <span style={{ fontSize: "24px", fontWeight: "bold", color: "#f1f5f9" }}>
                 {official} (UC Chairman)
               </span>

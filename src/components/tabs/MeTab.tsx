@@ -20,6 +20,7 @@ import {
   Check,
   Globe,
   Bell,
+  Share2,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -36,6 +37,7 @@ export const MeTab: React.FC = () => {
     setIsOfficialDashboardOpen,
     setIsAdminConsoleOpen,
     setIsNGOsModalOpen,
+    openWorkDoneShare,
     showToast,
     language,
     setLanguage,
@@ -126,44 +128,152 @@ export const MeTab: React.FC = () => {
         </div>
       </section>
 
-      {/* Community Leadership (Spec Addendum 01, Workflow W11) */}
-      <section className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-indigo-800/60 space-y-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 uppercase tracking-wider">
-              <Award className="w-4 h-4 text-indigo-400" />
-              Community Leadership • Aspiring Reps
+      {/* UC Chairman Command Desk (When activeRole is official/chairman) */}
+      {activeRole === "official" ? (
+        <section className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-900 rounded-2xl p-4 text-white shadow-md border border-amber-800/60 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 uppercase tracking-wider">
+                <Building2 className="w-4 h-4 text-amber-400" />
+                <span>UC Chairman Official Command</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Municipal Governance &amp; Resolution Command
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-sm">
+                Elected authority for {activeUC.name}. Respond to public petitions, submit verified completion photos, and track responsiveness.
+              </p>
             </div>
-            <h3 className="text-sm font-black text-white">
-              Adopt Issues. Build a Verified Track Record.
-            </h3>
-            <p className="text-[11px] text-slate-300 max-w-sm">
-              Residents who want to contest local elections or serve their UC can adopt issues, make pledges, and earn a public score.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-          <button
-            onClick={() => setIsBecomeLeaderOpen(true)}
-            className="w-full py-2.5 px-3 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
-          >
-            <span>Become a Community Leader</span>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-
-          <button
-            onClick={() => setIsLeaderDashboardOpen(true)}
-            className="w-full py-2.5 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-indigo-400/30"
-          >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              Leader Workbench
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+              Official
             </span>
-            <ChevronRight className="w-4 h-4 text-indigo-200" />
-          </button>
-        </div>
-      </section>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => setIsOfficialDashboardOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Open Chairman Workbench</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-950" />
+            </button>
+
+            <button
+              onClick={() => {
+                const resolved = issues.find(
+                  (i) => (i.status === "marked_resolved" || i.status === "confirmed") && i.ucId === activeUC.id
+                );
+                if (resolved) {
+                  openWorkDoneShare(resolved);
+                } else {
+                  showToast("No resolved issues yet in this UC to share.");
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-white/15"
+            >
+              <span className="flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Share Work Done Proofs</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </section>
+      ) : activeRole === "community_leader" ? (
+        <section className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 rounded-2xl p-4 text-white shadow-md border border-indigo-800/60 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                <Award className="w-4 h-4 text-indigo-400" />
+                <span>Community Leader Studio</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Active Contender Track • Local Elections 2027
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-sm">
+                Your civic track record, adopted issues, and verified citizen ratings in {activeUC.name} are active.
+              </p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
+              Leader Track
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => setIsLeaderDashboardOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Open Leader Workbench</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-indigo-200" />
+            </button>
+            <button
+              onClick={() => {
+                const myResolved = issues.find(
+                  (i) => (i.status === "marked_resolved" || i.status === "confirmed") && i.adoptedByType === "leader"
+                );
+                if (myResolved) {
+                  openWorkDoneShare(myResolved);
+                } else {
+                  showToast("Resolve an adopted issue to generate a Work Done proof card.");
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-white/15"
+            >
+              <span className="flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-teal-400" />
+                <span>Share Completed Work</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </section>
+      ) : (
+        /* Regular Citizen Track */
+        <section className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-indigo-800/60 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                <Award className="w-4 h-4 text-indigo-400" />
+                <span>Community Leadership • Aspiring Reps</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Adopt Issues. Build a Verified Track Record.
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-sm">
+                Residents who want to contest local elections or serve their UC can adopt issues, make pledges, and earn a public score.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => setIsBecomeLeaderOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs transition cursor-pointer flex items-center justify-between shadow-xs"
+            >
+              <span>Become a Community Leader</span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+
+            <button
+              onClick={() => setIsLeaderDashboardOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold text-xs transition cursor-pointer flex items-center justify-between border border-indigo-400/30"
+            >
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Leader Workbench</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-indigo-200" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* 3. Settings & Preferences */}
       <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">

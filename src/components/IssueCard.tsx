@@ -17,6 +17,8 @@ import {
   HeartHandshake,
   ShieldAlert,
   ArrowRight,
+  CheckCircle,
+  Share2,
 } from "lucide-react";
 
 interface IssueCardProps {
@@ -25,7 +27,7 @@ interface IssueCardProps {
 }
 
 export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
-  const { activeRole } = useCivic();
+  const { activeRole, openWorkDoneShare } = useCivic();
   const photoUrl =
     issue.photos[0]?.url ||
     "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop";
@@ -127,7 +129,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
         </div>
 
         {/* Role-Specific Action Strip */}
-        {activeRole === "official" && issue.status !== "confirmed" && (
+        {activeRole === "official" && issue.status !== "confirmed" && issue.status !== "marked_resolved" && (
           <div className="mt-1 pt-2 border-t border-amber-200/60 dark:border-amber-900/40 bg-amber-50/80 dark:bg-amber-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px]">
             <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-amber-600" />
@@ -135,6 +137,25 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
             </span>
             <span className="text-amber-700 dark:text-amber-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
               Act <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        )}
+
+        {activeRole === "official" && (issue.status === "marked_resolved" || issue.status === "confirmed") && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              openWorkDoneShare(issue);
+            }}
+            className="mt-1 pt-2 border-t border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/80 dark:bg-emerald-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px] hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60 transition cursor-pointer"
+          >
+            <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Work Done: Verified Resolution</span>
+            </span>
+            <span className="text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share Proof</span>
             </span>
           </div>
         )}

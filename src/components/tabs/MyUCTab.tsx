@@ -274,12 +274,26 @@ export const MyUCTab: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsBecomeLeaderOpen(true)}
-            className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px] font-bold hover:bg-indigo-100 transition cursor-pointer shrink-0"
-          >
-            Become a Leader
-          </button>
+          {activeRole === "citizen" || !activeRole ? (
+            <button
+              onClick={() => setIsBecomeLeaderOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px] font-bold hover:bg-indigo-100 transition cursor-pointer shrink-0"
+            >
+              Become a Leader
+            </button>
+          ) : activeRole === "community_leader" ? (
+            <button
+              onClick={() => setIsLeaderDashboardOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition cursor-pointer shrink-0 flex items-center gap-1 shadow-xs"
+            >
+              <Award className="w-3 h-3" />
+              <span>Leader Studio</span>
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+              UC Directory
+            </span>
+          )}
         </div>
 
         {communityLeaders.filter((c) => c.ucId === activeUC.id).length === 0 ? (
