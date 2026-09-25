@@ -24,6 +24,7 @@ import {
   Star,
   ThumbsUp,
   RotateCcw,
+  HeartHandshake,
 } from "lucide-react";
 
 export const IssueDetailModal: React.FC = () => {
@@ -33,14 +34,26 @@ export const IssueDetailModal: React.FC = () => {
     toggleAffected,
     voteConfirmation,
     setIsLeaderDashboardOpen,
+    setIsNGOsModalOpen,
     showToast,
     activeUC,
+    activeRole,
+    addOfficialResponse,
+    officialMarkResolved,
+    flagJurisdiction,
   } = useCivic();
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [showOfficialStation, setShowOfficialStation] = useState(false);
+  const [officialStationTab, setOfficialStationTab] = useState<"reply" | "resolve" | "flag">("reply");
+  const [officialReplyInput, setOfficialReplyInput] = useState("");
+  const [officialResolveNote, setOfficialResolveNote] = useState("");
+  const [officialResolveProof, setOfficialResolveProof] = useState(
+    "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop"
+  );
   const [comments, setComments] = useState<
     { id: string; user: string; role: string; text: string; time: string }[]
   >([
@@ -425,8 +438,146 @@ export const IssueDetailModal: React.FC = () => {
                   </div>
                 )}
               </div>
+            ) : activeRole === "official" ? (
+              // Official Chairman Authority Station
+              <div className="space-y-3 p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <Building2 className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                    <span>Chairman Action Desk · {activeUC.chairman.seatTitle}</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
+                    Official Command
+                  </span>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      addOfficialResponse(selectedIssue.id, "Crew dispatched to site for inspection & repair.", "in_progress");
+                      showToast("Status updated to In Progress: Crew dispatched");
+                    }}
+                    className="flex-1 py-2 px-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>👷 Dispatch Crew</span>
+                  </button>
+                  <button
+                    onClick={() => setShowOfficialStation(!showOfficialStation)}
+                    className="flex-1 py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>✓ Resolve with Proof</span>
+                  </button>
+                </div>
+
+                {/* Expanded Resolve/Reply Form */}
+                {showOfficialStation && (
+                  <div className="space-y-2.5 pt-2 border-t border-amber-200 dark:border-amber-900 animate-in fade-in duration-150">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={officialReplyInput}
+                        onChange={(e) => setOfficialReplyInput(e.target.value)}
+                        placeholder="Official pinned statement (e.g. Pipeline patched and debris cleared)..."
+                        className="flex-1 p-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                      />
+                      <button
+                        onClick={() => {
+                          if (officialReplyInput.trim()) {
+                            addOfficialResponse(selectedIssue.id, officialReplyInput.trim(), "in_progress");
+                            setOfficialReplyInput("");
+                            showToast("Official statement pinned to public record");
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-amber-700 text-white text-xs font-bold hover:bg-amber-800 transition cursor-pointer shrink-0"
+                      >
+                        Reply
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-200 dark:border-amber-800">
+                      <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Resolution Completion Photo Proof:
+                      </div>
+                      <input
+                        type="text"
+                        value={officialResolveProof}
+                        onChange={(e) => setOfficialResolveProof(e.target.value)}
+                        placeholder="Resolution Photo URL..."
+                        className="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] focus:outline-hidden"
+                      />
+                      <input
+                        type="text"
+                        value={officialResolveNote}
+                        onChange={(e) => setOfficialResolveNote(e.target.value)}
+                        placeholder="Resolution notes (materials used, team name)..."
+                        className="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] focus:outline-hidden"
+                      />
+                      <button
+                        onClick={() => {
+                          officialMarkResolved(selectedIssue.id, officialResolveProof, officialResolveNote || "Resolved by UC municipal team");
+                          setShowOfficialStation(false);
+                        }}
+                        className="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 mt-1"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Submit Fix Proof &amp; Mark Resolved</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeRole === "community_leader" ? (
+              // Community Leader Adoption Station
+              <div className="space-y-2 p-3 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-left">
+                <div className="flex items-center justify-between text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                  <span className="flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-indigo-600" />
+                    <span>Community Leader Adoption Station</span>
+                  </span>
+                  <span className="text-[10px] bg-indigo-200/80 dark:bg-indigo-900 px-2 py-0.5 rounded-full">
+                    Leader Mode
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Take ownership of this issue, organize volunteers, or fund a community fix.
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedIssue(null);
+                    setIsLeaderDashboardOpen(true);
+                  }}
+                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>Adopt Issue &amp; Coordinate Volunteers in Leader Studio</span>
+                </button>
+              </div>
+            ) : activeRole === "ngo" ? (
+              // NGO Relief Action Desk
+              <div className="space-y-2 p-3 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-left">
+                <div className="flex items-center justify-between text-xs font-bold text-purple-900 dark:text-purple-200">
+                  <span className="flex items-center gap-1.5">
+                    <HeartHandshake className="w-4 h-4 text-purple-600" />
+                    <span>NGO Relief Action Desk</span>
+                  </span>
+                  <span className="text-[10px] bg-purple-200/80 dark:bg-purple-900 px-2 py-0.5 rounded-full">
+                    NGO Mode
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedIssue(null);
+                    setIsNGOsModalOpen(true);
+                  }}
+                  className="w-full py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <HeartHandshake className="w-3.5 h-3.5" />
+                  <span>Sponsor Resolution &amp; Dispatch Relief Supplies</span>
+                </button>
+              </div>
             ) : (
-              // Standard "I'm Affected" (Me Too) Action
+              // Standard "I'm Affected" (Me Too) Action for Citizens
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">

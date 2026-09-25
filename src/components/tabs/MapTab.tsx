@@ -54,7 +54,7 @@ const MAP_STYLES: Record<
 };
 
 export const MapTab: React.FC = () => {
-  const { issues, activeUC, setActiveUC, setSelectedIssue, allUCs } = useCivic();
+  const { issues, activeUC, setActiveUC, setSelectedIssue, allUCs, activeRole } = useCivic();
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -393,6 +393,35 @@ export const MapTab: React.FC = () => {
             <span>Monsoon Hazard</span>
             {monsoonMode && <span className="text-[9px] bg-sky-800 text-white px-1 rounded">ON</span>}
           </button>
+
+          {/* Role-Specific Fast Action Filter in Map */}
+          {activeRole === "official" && (
+            <button
+              onClick={() => {
+                if (selectedStatus === "open") setSelectedStatus("all");
+                else setSelectedStatus("open");
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer border shrink-0 ${
+                selectedStatus === "open"
+                  ? "bg-amber-600 text-white border-amber-500 shadow-amber-600/30"
+                  : "bg-amber-50 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+              }`}
+            >
+              <span>🏛️ Needs Action ({issues.filter(i => i.ucId === activeUC.id && i.status === "open").length})</span>
+            </button>
+          )}
+
+          {activeRole === "community_leader" && (
+            <button
+              onClick={() => {
+                if (selectedStatus === "adoptable") setSelectedStatus("all");
+                else setSelectedStatus("open");
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer border shrink-0 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-900 dark:text-indigo-200 border-indigo-300 dark:border-indigo-700"
+            >
+              <span>🎖️ Adoptable (≥7d) ({issues.filter(i => i.daysOpen >= 7 && i.status !== "confirmed" && !i.adoptedByType).length})</span>
+            </button>
+          )}
         </div>
       </div>
 

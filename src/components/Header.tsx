@@ -12,7 +12,11 @@ import {
   Globe,
 } from "lucide-react";
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenRoleSwitcher?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenRoleSwitcher }) => {
   const {
     activeUC,
     setActiveUC,
@@ -24,6 +28,7 @@ export const Header: React.FC = () => {
     showToast,
     language,
     setLanguage,
+    activeRole,
   } = useCivic();
 
   const [isUcMenuOpen, setIsUcMenuOpen] = useState(false);
@@ -169,13 +174,55 @@ export const Header: React.FC = () => {
             <HelpCircle className="w-4 h-4 text-teal-600" />
           </button>
 
+          {/* Role Persona Switcher Quick Pill */}
+          <button
+            onClick={onOpenRoleSwitcher || (() => setActiveTab("me"))}
+            className={`px-1.5 sm:px-2 py-1 rounded-xl text-[10px] font-bold border transition cursor-pointer flex items-center gap-0.5 sm:gap-1 active:scale-95 shrink-0 ${
+              activeRole === "official"
+                ? "bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800"
+                : activeRole === "community_leader"
+                ? "bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-200 border-indigo-300 dark:border-indigo-800"
+                : activeRole === "ngo"
+                ? "bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-800"
+                : activeRole === "admin"
+                ? "bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-200 border-rose-300 dark:border-rose-800"
+                : "hidden sm:flex bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+            }`}
+            title="Switch View & Persona"
+          >
+            <span>
+              {activeRole === "official"
+                ? "🏛️ Chairman"
+                : activeRole === "community_leader"
+                ? "🎖️ Leader"
+                : activeRole === "ngo"
+                ? "🤝 NGO"
+                : activeRole === "admin"
+                ? "🛡️ Admin"
+                : "👤 Citizen"}
+            </span>
+          </button>
+
           {/* User Profile Avatar Pill (Always anchored inside screen, never cut off) */}
           <button
             onClick={() => setActiveTab("me")}
-            className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-700 to-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs transition transform active:scale-95 cursor-pointer shrink-0 ring-2 ring-teal-500/20"
-            title="My Profile & Settings"
+            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-xs transition transform active:scale-95 cursor-pointer shrink-0 relative ${
+              activeRole === "official"
+                ? "bg-gradient-to-tr from-amber-700 to-amber-600 ring-2 ring-amber-400"
+                : activeRole === "community_leader"
+                ? "bg-gradient-to-tr from-indigo-700 to-indigo-600 ring-2 ring-indigo-400"
+                : activeRole === "ngo"
+                ? "bg-gradient-to-tr from-purple-700 to-purple-600 ring-2 ring-purple-400"
+                : activeRole === "admin"
+                ? "bg-gradient-to-tr from-rose-800 to-rose-600 ring-2 ring-rose-400"
+                : "bg-gradient-to-tr from-teal-700 to-emerald-600 ring-2 ring-teal-500/20"
+            }`}
+            title={`Active: ${activeRole.replace("_", " ")} · Tap for Profile & Settings`}
           >
             <span>ZB</span>
+            {activeRole !== "citizen" && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 ring-1.5 ring-white dark:ring-slate-900 animate-pulse" />
+            )}
           </button>
         </div>
       </div>

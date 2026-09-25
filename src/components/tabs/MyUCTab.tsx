@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Users,
   Building,
+  Building2,
   Mic,
   ShieldAlert,
   Award,
@@ -44,17 +45,32 @@ export const MyUCTab: React.FC = () => {
     rsvpEvent,
     setSelectedOfficial,
     showToast,
+    activeRole,
+    setIsOfficialDashboardOpen,
+    setIsLeaderDashboardOpen,
+    setIsAdminConsoleOpen,
   } = useCivic();
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "urgent" | "in_progress" | "marked_resolved" | "adoptable">("all");
   const [sortBy, setSortBy] = useState<"oldest" | "affected" | "recent">("oldest");
 
   // Filter issues for this UC
   const ucIssues = issues.filter((iss) => iss.ucId === activeUC.id);
 
+  // Role counts
+  const urgentCount = ucIssues.filter((i) => i.status === "open" && !i.officialResponse).length;
+  const inProgressCount = ucIssues.filter((i) => i.status === "in_progress").length;
+  const markedResolvedCount = ucIssues.filter((i) => i.status === "marked_resolved").length;
+  const adoptableCount = ucIssues.filter((i) => i.daysOpen >= 7 && i.status !== "confirmed" && !i.adoptedByType).length;
+
   const filteredIssues = ucIssues.filter((iss) => {
-    if (activeCategoryFilter === "all") return true;
-    return iss.categoryId === activeCategoryFilter;
+    if (activeCategoryFilter !== "all" && iss.categoryId !== activeCategoryFilter) return false;
+    if (roleFilter === "urgent") return iss.status === "open" && !iss.officialResponse;
+    if (roleFilter === "in_progress") return iss.status === "in_progress";
+    if (roleFilter === "marked_resolved") return iss.status === "marked_resolved";
+    if (roleFilter === "adoptable") return iss.daysOpen >= 7 && iss.status !== "confirmed" && !iss.adoptedByType;
+    return true;
   });
 
   // Sort issues
@@ -92,9 +108,15 @@ export const MyUCTab: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           {/* Avatar and Name */}
           <div
-            onClick={() => setSelectedOfficial(activeUC.chairman)}
+            onClick={() => {
+              if (activeRole === "official") {
+                setIsOfficialDashboardOpen(true);
+              } else {
+                setSelectedOfficial(activeUC.chairman);
+              }
+            }}
             className="flex items-center gap-3 min-w-0 cursor-pointer group"
-            title="Click to view Official Report Card (Section 7.1)"
+            title={activeRole === "official" ? "Open Official Workbench" : "Click to view Official Report Card"}
           >
             <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 shadow-xs group-hover:ring-2 group-hover:ring-teal-500 transition">
               <Image
@@ -105,26 +127,36 @@ export const MyUCTab: React.FC = () => {
                 className="object-cover"
                 priority
               />
-              {activeUC.chairman.isClaimed && (
-                <div
-                  className="absolute bottom-0 inset-x-0 bg-teal-800/90 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider"
-                  title="Official profile verified and claimed"
-                >
-                  Claimed
-                </div>
-              )}
+              <div
+                className={`absolute bottom-0 inset-x-0 text-white text-[7px] font-bold text-center py-0.5 uppercase tracking-wider ${
+                  activeRole === "official" ? "bg-amber-600" : "bg-teal-800/90"
+                }`}
+              >
+                {activeRole === "official" ? "Your Desk" : "Claimed"}
+              </div>
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-teal-700 dark:group-hover:text-teal-400 transition flex items-center gap-1">
-                <span>{activeUC.chairman.name}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition" />
-              </h1>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-teal-700 dark:group-hover:text-teal-400 transition flex items-center gap-1">
+                  <span>{activeUC.chairman.name}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition" />
+                </h1>
+                {activeRole === "official" && (
+                  <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-1.5 py-0.2 rounded border border-amber-300 dark:border-amber-800">
+                    You (Chairman)
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 font-medium truncate pt-0.5">
                 {activeUC.chairman.seatTitle}
               </p>
               <p className="text-[11px] text-slate-400 font-medium truncate">
-                Party: <span className="text-slate-700 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span> · <span className="text-teal-700 dark:text-teal-400 font-bold">Report Card ↗</span>
+                {activeRole === "official" ? (
+                  <span className="text-amber-700 dark:text-amber-400 font-bold">Official Workbench Active ⚡</span>
+                ) : (
+                  <>Party: <span className="text-slate-700 dark:text-slate-300 font-semibold">{activeUC.chairman.party}</span> · <span className="text-teal-700 dark:text-teal-400 font-bold">Report Card ↗</span></>
+                )}
               </p>
             </div>
           </div>
@@ -146,6 +178,44 @@ export const MyUCTab: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Chairman Urgency & Action Desk (Only visible in Official View) */}
+        {activeRole === "official" && (
+          <div className="p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-amber-700" />
+                <span>Chairman Action Center</span>
+              </span>
+              <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                Score Decay Timer Active (48h)
+              </span>
+            </div>
+
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
+              {urgentCount > 0 ? (
+                <>⚠️ <strong>{urgentCount} citizen reports</strong> in {activeUC.name} require an official response. Respond within 48h to preserve your 30-day score.</>
+              ) : (
+                <>✓ All open reports have received an official response. Excellent response record!</>
+              )}
+            </p>
+
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                onClick={() => setIsOfficialDashboardOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1"
+              >
+                <span>⚡ Open Resolution Workbench</span>
+              </button>
+              <button
+                onClick={() => setIsBaithakPanelModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 font-bold text-xs hover:bg-amber-100 transition active:scale-95 cursor-pointer flex items-center gap-1"
+              >
+                <span>📢 Announce Baithak</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Badges Strip (Clean, Horizontal Muted Micro-Pills) */}
         {activeUC.chairman.badges.length > 0 && (
@@ -322,7 +392,78 @@ export const MyUCTab: React.FC = () => {
         </button>
       </section>
 
-      {/* 3. Category Filter Chips (Horizontal Scroll) */}
+      {/* 3. Role-Specific Action Filter Tabs */}
+      {activeRole === "official" && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setRoleFilter("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 ${
+              roleFilter === "all"
+                ? "bg-amber-700 text-white shadow-xs"
+                : "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800"
+            }`}
+          >
+            All Ward Issues ({ucIssues.length})
+          </button>
+          <button
+            onClick={() => setRoleFilter("urgent")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 flex items-center gap-1 ${
+              roleFilter === "urgent"
+                ? "bg-red-600 text-white shadow-xs"
+                : "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+            }`}
+          >
+            <span>🚨 Needs Reply ({urgentCount})</span>
+          </button>
+          <button
+            onClick={() => setRoleFilter("in_progress")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 flex items-center gap-1 ${
+              roleFilter === "in_progress"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+            }`}
+          >
+            <span>👷 In Progress ({inProgressCount})</span>
+          </button>
+          <button
+            onClick={() => setRoleFilter("marked_resolved")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 flex items-center gap-1 ${
+              roleFilter === "marked_resolved"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+            }`}
+          >
+            <span>✓ Needs Confirm ({markedResolvedCount})</span>
+          </button>
+        </div>
+      )}
+
+      {activeRole === "community_leader" && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setRoleFilter("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 ${
+              roleFilter === "all"
+                ? "bg-indigo-700 text-white shadow-xs"
+                : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800"
+            }`}
+          >
+            All Ward Issues ({ucIssues.length})
+          </button>
+          <button
+            onClick={() => setRoleFilter("adoptable")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition shrink-0 flex items-center gap-1 ${
+              roleFilter === "adoptable"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-700"
+            }`}
+          >
+            <span>🎖️ Open for Community Adoption (≥7d) ({adoptableCount})</span>
+          </button>
+        </div>
+      )}
+
+      {/* 3b. Category Filter Chips (Horizontal Scroll) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setActiveCategoryFilter("all")}

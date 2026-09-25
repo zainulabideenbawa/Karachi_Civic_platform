@@ -27,10 +27,13 @@ import { UCIdeasBoardModal } from "@/components/modals/UCIdeasBoardModal";
 import { FindMyUCModal } from "@/components/modals/FindMyUCModal";
 import { OnboardingModal } from "@/components/modals/OnboardingModal";
 import { OfficialProfileModal } from "@/components/modals/OfficialProfileModal";
+import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
+import { RoleBanner } from "@/components/RoleBanner";
 import { PWAInstallDrawer } from "@/components/PWAInstallDrawer";
 
 function CivicAppContent() {
   const { activeTab, language } = useCivic();
+  const [isRoleSwitcherOpen, setIsRoleSwitcherOpen] = React.useState(false);
 
   return (
     <div
@@ -38,7 +41,10 @@ function CivicAppContent() {
       className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans antialiased selection:bg-teal-500 selection:text-white"
     >
       {/* Top Application Header */}
-      <Header />
+      <Header onOpenRoleSwitcher={() => setIsRoleSwitcherOpen(true)} />
+
+      {/* Persistent Role Mode Banner (Transforms app into Chairman, Leader, NGO, Admin mode) */}
+      <RoleBanner onOpenRoleSwitcher={() => setIsRoleSwitcherOpen(true)} />
 
       {/* Main Responsive Container (Section 11.0b: Mobile-first 360-430px centered up to 640px) */}
       <main className="flex-1 w-full max-w-xl mx-auto px-3 sm:px-4 pt-3 pb-8">
@@ -75,6 +81,10 @@ function CivicAppContent() {
       <FindMyUCModal />
       <OnboardingModal />
       <OfficialProfileModal />
+      <RoleSwitcherModal
+        isOpen={isRoleSwitcherOpen}
+        onClose={() => setIsRoleSwitcherOpen(false)}
+      />
     </div>
   );
 }

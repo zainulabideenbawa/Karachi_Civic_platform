@@ -4,7 +4,20 @@ import React from "react";
 import Image from "next/image";
 import { Issue } from "@/types/civic";
 import { StatusPill } from "./StatusPill";
-import { Users, AlertTriangle, MessageSquare, Clock, MapPin, Camera } from "lucide-react";
+import { useCivic } from "@/context/CivicContext";
+import {
+  Users,
+  AlertTriangle,
+  MessageSquare,
+  Clock,
+  MapPin,
+  Camera,
+  Building2,
+  Award,
+  HeartHandshake,
+  ShieldAlert,
+  ArrowRight,
+} from "lucide-react";
 
 interface IssueCardProps {
   issue: Issue;
@@ -12,6 +25,7 @@ interface IssueCardProps {
 }
 
 export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
+  const { activeRole } = useCivic();
   const photoUrl =
     issue.photos[0]?.url ||
     "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop";
@@ -111,6 +125,55 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
             </span>
           )}
         </div>
+
+        {/* Role-Specific Action Strip */}
+        {activeRole === "official" && issue.status !== "confirmed" && (
+          <div className="mt-1 pt-2 border-t border-amber-200/60 dark:border-amber-900/40 bg-amber-50/80 dark:bg-amber-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Chairman Action: Dispatch / Resolve</span>
+            </span>
+            <span className="text-amber-700 dark:text-amber-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Act <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        )}
+
+        {activeRole === "community_leader" && issue.daysOpen >= 7 && issue.status !== "confirmed" && !issue.adoptedByType && (
+          <div className="mt-1 pt-2 border-t border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-indigo-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Eligible for Community Adoption (≥7d)</span>
+            </span>
+            <span className="text-indigo-700 dark:text-indigo-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Adopt <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        )}
+
+        {activeRole === "ngo" && issue.severity === "dangerous" && issue.status !== "confirmed" && (
+          <div className="mt-1 pt-2 border-t border-purple-200/60 dark:border-purple-900/40 bg-purple-50/80 dark:bg-purple-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+              <HeartHandshake className="w-3.5 h-3.5 text-purple-600" />
+              <span>Critical NGO Relief Target</span>
+            </span>
+            <span className="text-purple-700 dark:text-purple-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Deploy <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        )}
+
+        {activeRole === "admin" && (
+          <div className="mt-1 pt-2 border-t border-rose-200/60 dark:border-rose-900/40 bg-rose-50/80 dark:bg-rose-950/40 -mx-4 -mb-4 px-3.5 py-2 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+              <span>Oversight Inspection: Verification Weight Active</span>
+            </span>
+            <span className="text-rose-700 dark:text-rose-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              Audit <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
