@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import {
   AuditLogEntry,
   CivicEvent,
@@ -265,6 +265,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [selectedBrief, setSelectedBrief] = useState<ThinkTankBrief | null>(null);
 
   const [hasHydrated, setHasHydrated] = useState<boolean>(false);
+  const hasHydratedUrlRef = useRef<boolean>(false);
 
   const openWorkDoneShare = (issue: Issue) => {
     setWorkDoneShareIssue(issue);
@@ -730,14 +731,18 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(storedTowns);
         if (Array.isArray(parsed) && parsed.length > 0) setAllTowns(parsed);
       }
+      let loadedUCs = MOCK_UCS;
       const storedUCs = localStorage.getItem("karachi_civic_ucs_v2");
       if (storedUCs) {
         const parsed = JSON.parse(storedUCs);
-        if (Array.isArray(parsed) && parsed.length > 0) setAllUCs(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedUCs = parsed;
+          setAllUCs(parsed);
+        }
       }
       const storedUcId = localStorage.getItem("karachi_civic_uc_id_v2");
       if (storedUcId) {
-        const found = allUCs.find((u) => u.id === storedUcId);
+        const found = loadedUCs.find((u) => u.id === storedUcId);
         if (found) setActiveUC(found);
       }
       const storedBriefs = localStorage.getItem("karachi_civic_think_tanks_v2");
@@ -750,7 +755,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setHasHydrated(true);
     }
-  }, [allUCs]);
+  }, []);
 
   // Persist issues on change
   useEffect(() => {
@@ -1170,7 +1175,8 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   // Deep linking URL hydration on mount (Section 11.0 Rule 12 & Section 12.2)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || hasHydratedUrlRef.current) return;
+    hasHydratedUrlRef.current = true;
     try {
       const params = new URLSearchParams(window.location.search);
       const issueParam = params.get("issue");
