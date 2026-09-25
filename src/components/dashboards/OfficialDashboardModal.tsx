@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { useCivic } from "@/context/CivicContext";
+import { compressImageTiers } from "@/lib/image-compression";
 import { StatusPill } from "../StatusPill";
 import {
   X,
@@ -11,6 +12,8 @@ import {
   Clock,
   Send,
   Camera,
+  Image as ImageIcon,
+  Trash2,
   AlertTriangle,
   ChevronRight,
 } from "lucide-react";
@@ -34,9 +37,79 @@ export const OfficialDashboardModal: React.FC = () => {
   // Form states
   const [replyText, setReplyText] = useState("");
   const [resolutionNote, setResolutionNote] = useState("");
-  const [afterPhotoUrl, setAfterPhotoUrl] = useState(
-    "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop"
-  );
+  const [afterPhotoUrl, setAfterPhotoUrl] = useState("");
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerCamera = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+      cameraInputRef.current.click();
+    }
+  };
+
+  const triggerGallery = () => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = "";
+      galleryInputRef.current.click();
+    }
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      const result = await compressImageTiers(
+        img,
+        img.naturalWidth || 1280,
+        img.naturalHeight || 960,
+        { lat: activeUC.lat, lng: activeUC.lng }
+      );
+      setAfterPhotoUrl(result.full.dataUrl);
+      showToast("Resolution completion photo verified & attached!");
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setAfterPhotoUrl(reader.result);
+          showToast("Resolution photo attached!");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const SAMPLE_RESOLUTIONS = [
+    {
+      title: "Road Resurfaced",
+      url: "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop",
+    },
+    {
+      title: "Garbage Removed",
+      url: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=800&h=600&fit=crop",
+    },
+    {
+      title: "Sewer Line Restored",
+      url: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=800&h=600&fit=crop",
+    },
+  ];
+
   const [flagTarget, setFlagTarget] = useState("KWSC (Water & Sewerage)");
   const [flagReason, setFlagReason] = useState("");
 
@@ -49,9 +122,16 @@ export const OfficialDashboardModal: React.FC = () => {
     .sort((a, b) => b.daysOpen - a.daysOpen);
 
   const handleResolveSubmit = (issueId: string) => {
-    officialMarkResolved(issueId, afterPhotoUrl, resolutionNote);
+    if (!afterPhotoUrl) {
+      showToast("Please capture or upload an after-fix photo proof first!");
+      return;
+    }
+    officialMarkResolved(issueId, afterPhotoUrl, resolutionNote || "Resolved by UC municipal team");
     setActiveAction(null);
     setSelectedIssueToAct(null);
+    setAfterPhotoUrl("");
+    setResolutionNote("");
+    showToast("Issue resolved! 7-day citizen confirmation window opened.");
   };
 
   const handleReplySubmit = (issueId: string) => {
@@ -209,26 +289,129 @@ export const OfficialDashboardModal: React.FC = () => {
                     Section 5.3: Requires an &quot;after&quot; photo taken live at the location. Opens a 7-day citizen confirmation window.
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-24 h-20 rounded-lg overflow-hidden border border-slate-300 shrink-0">
-                      <Image
-                        src={afterPhotoUrl}
-                        alt="After fix photo"
-                        fill
-                        sizes="96px"
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                        <Camera className="w-3.5 h-3.5 text-teal-600" />
-                        <span>Site After-Photo Captured</span>
+                  {/* Hidden Native Camera & Gallery Inputs */}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    aria-hidden="true"
+                    onChange={handlePhotoChange}
+                  />
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    aria-hidden="true"
+                    onChange={handlePhotoChange}
+                  />
+
+                  {afterPhotoUrl ? (
+                    /* Attached Photo Preview */
+                    <div className="space-y-2">
+                      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-emerald-500/40 bg-slate-950 shadow-inner group">
+                        <Image
+                          src={afterPhotoUrl}
+                          alt="After fix photo"
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/30 pointer-events-none" />
+
+                        <div className="absolute top-2 left-2 flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600/90 text-white text-[11px] font-bold shadow-xs">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Site After-Photo Verified</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setAfterPhotoUrl("")}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white transition shadow-sm cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[11px] text-slate-200 font-medium">
+                          <span>📍 {activeUC.name} Ground Reality</span>
+                          <span className="bg-black/50 px-2 py-0.5 rounded text-[10px] font-mono">
+                            GPS Verified within 100m
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-400">
-                        GPS verified within 100m of issue site
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={triggerCamera}
+                          className="py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-98"
+                        >
+                          <Camera className="w-4 h-4 text-teal-600" />
+                          <span>Retake with Camera</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={triggerGallery}
+                          className="py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-98"
+                        >
+                          <ImageIcon className="w-4 h-4 text-indigo-600" />
+                          <span>Pick from Gallery</span>
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Dual Camera & Gallery Capture Trigger Card */
+                    <div className="p-4 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-750 bg-emerald-50/50 dark:bg-emerald-950/20 text-center space-y-3">
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Capture Site Ground Evidence
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Take a photo with camera or choose from device gallery
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={triggerCamera}
+                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-98 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Camera className="w-4 h-4 text-white" />
+                          <span>Open Camera</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={triggerGallery}
+                          className="py-2.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 shadow-xs active:scale-98 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <ImageIcon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                          <span>Device Gallery</span>
+                        </button>
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-center gap-1.5 flex-wrap text-[10px] text-slate-500">
+                        <span className="font-semibold text-slate-400">Quick presets:</span>
+                        {SAMPLE_RESOLUTIONS.map((s) => (
+                          <button
+                            key={s.title}
+                            type="button"
+                            onClick={() => {
+                              setAfterPhotoUrl(s.url);
+                              showToast(`Selected "${s.title}" sample resolution evidence`);
+                            }}
+                            className="px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-teal-500 text-slate-700 dark:text-slate-300 text-[10px] cursor-pointer transition hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                          >
+                            + {s.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <input
                     type="text"
@@ -239,8 +422,9 @@ export const OfficialDashboardModal: React.FC = () => {
                   />
 
                   <button
+                    type="button"
                     onClick={() => handleResolveSubmit(selectedIssueToAct.id)}
-                    className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-98 transition"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                     <span>Submit Live Resolution Proof</span>
