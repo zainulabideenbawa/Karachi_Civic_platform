@@ -224,6 +224,54 @@ export const MapTab: React.FC = () => {
             ],
             color: "#e11d48",
           },
+          {
+            id: "uc-nazimabad-1",
+            name: "UC-1 Paposh Nagar (Nazimabad No. 5)",
+            score: 78.4,
+            coords: [
+              [24.935, 67.025],
+              [24.938, 67.042],
+              [24.922, 67.040],
+              [24.920, 67.022],
+            ],
+            color: "#059669",
+          },
+          {
+            id: "uc-nazimabad-2",
+            name: "UC-2 Inquiry Office (Nazimabad No. 1 & 2)",
+            score: 73.1,
+            coords: [
+              [24.920, 67.025],
+              [24.922, 67.042],
+              [24.905, 67.045],
+              [24.902, 67.028],
+            ],
+            color: "#0284c7",
+          },
+          {
+            id: "uc-nazimabad-3",
+            name: "UC-3 Chawla Market (Nazimabad No. 3 & 4)",
+            score: 65.5,
+            coords: [
+              [24.922, 67.042],
+              [24.925, 67.055],
+              [24.908, 67.058],
+              [24.905, 67.045],
+            ],
+            color: "#d97706",
+          },
+          {
+            id: "uc-nazimabad-4",
+            name: "UC-4 Golimar / Rizvia Society",
+            score: 61.2,
+            coords: [
+              [24.902, 67.020],
+              [24.905, 67.035],
+              [24.890, 67.038],
+              [24.886, 67.022],
+            ],
+            color: "#f59e0b",
+          },
         ];
 
         ucPolygons.forEach((uc) => {
