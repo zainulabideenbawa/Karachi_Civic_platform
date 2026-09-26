@@ -68,6 +68,8 @@ interface CivicContextType {
   setActiveRole: (role: UserRole) => void;
   language: Language;
   setLanguage: (lang: Language) => void;
+  theme: "system" | "light" | "dark";
+  setTheme: (theme: "system" | "light" | "dark") => void;
   
   // Modals & Navigation States
   selectedIssue: Issue | null;
@@ -224,6 +226,33 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   const [activeRole, setActiveRole] = useState<UserRole>("citizen");
   const [language, setLanguage] = useState<Language>("en");
+  const [theme, setThemeState] = useState<"system" | "light" | "dark">("system");
+
+  const applyThemeToDom = (t: "system" | "light" | "dark") => {
+    if (typeof window === "undefined") return;
+    const root = document.documentElement;
+    if (t === "dark") {
+      root.classList.add("dark");
+    } else if (t === "light") {
+      root.classList.remove("dark");
+    } else {
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+    }
+  };
+
+  const setTheme = (newTheme: "system" | "light" | "dark") => {
+    setThemeState(newTheme);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("karachi_civic_theme_v2", newTheme);
+      } catch {}
+      applyThemeToDom(newTheme);
+    }
+  };
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [selectedOfficial, setSelectedOfficial] = useState<Official | null>(null);
@@ -749,6 +778,13 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       if (storedBriefs) {
         const parsed = JSON.parse(storedBriefs);
         if (Array.isArray(parsed) && parsed.length > 0) setThinkTankBriefs(parsed);
+      }
+      const storedTheme = localStorage.getItem("karachi_civic_theme_v2");
+      if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+        setThemeState(storedTheme);
+        applyThemeToDom(storedTheme);
+      } else {
+        applyThemeToDom("system");
       }
     } catch (e) {
       console.warn("Could not hydrate from localStorage:", e);
@@ -2061,6 +2097,8 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         setActiveRole,
         language,
         setLanguage,
+        theme,
+        setTheme,
         selectedIssue,
         setSelectedIssue,
         isWhatsAppAuthOpen,

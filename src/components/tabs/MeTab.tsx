@@ -26,6 +26,9 @@ import {
   AlertTriangle,
   Scale,
   RotateCcw,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 
 export const MeTab: React.FC = () => {
@@ -53,6 +56,8 @@ export const MeTab: React.FC = () => {
     setLanguage,
     resetDemoData,
     setIsThinkTankModalOpen,
+    theme,
+    setTheme,
   } = useCivic();
 
   const myReports = issues.filter((i) => i.reporterId === "user-101");
@@ -528,6 +533,68 @@ export const MeTab: React.FC = () => {
               }`}
             >
               اردو
+            </button>
+          </div>
+        </div>
+
+        {/* Appearance / Theme (System, Light, Dark) */}
+        <div className="p-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Sun className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Appearance &amp; Theme
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Switch between Light, Dark, or System mode
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+            <button
+              onClick={() => {
+                setTheme("system");
+                showToast("Theme set to System default");
+              }}
+              title="Match system theme"
+              className={`p-1.5 px-2 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                theme === "system"
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Auto</span>
+            </button>
+            <button
+              onClick={() => {
+                setTheme("light");
+                showToast("Light mode activated");
+              }}
+              title="Light mode"
+              className={`p-1.5 px-2 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                theme === "light"
+                  ? "bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Light</span>
+            </button>
+            <button
+              onClick={() => {
+                setTheme("dark");
+                showToast("Dark mode activated");
+              }}
+              title="Dark mode"
+              className={`p-1.5 px-2 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                theme === "dark"
+                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Dark</span>
             </button>
           </div>
         </div>

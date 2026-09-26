@@ -33,6 +33,7 @@ import {
   UserCheck,
   Shield,
   MessageSquare,
+  Flag,
 } from "lucide-react";
 
 export const IssueDetailModal: React.FC = () => {
@@ -977,9 +978,19 @@ export const IssueDetailModal: React.FC = () => {
                             : "Verified Resident"}
                         </span>
                       </div>
-                      <span className="text-slate-400 font-mono text-[10px] shrink-0">
-                        {new Date(c.createdAt).toLocaleDateString("en-PK", { month: "short", day: "numeric" })}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-slate-400 font-mono text-[10px]">
+                          {new Date(c.createdAt).toLocaleDateString("en-PK", { month: "short", day: "numeric" })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => showToast("Comment flagged for civic moderator review (Section 6 integrity queue)")}
+                          title="Report content (abusive, fake or private)"
+                          className="text-slate-400 hover:text-red-500 transition-colors p-0.5 cursor-pointer"
+                        >
+                          <Flag className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-xs">
