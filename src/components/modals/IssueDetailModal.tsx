@@ -46,6 +46,7 @@ export const IssueDetailModal: React.FC = () => {
     setIsNGOsModalOpen,
     showToast,
     activeUC,
+    allUCs,
     activeRole,
     addOfficialResponse,
     officialMarkResolved,
@@ -104,7 +105,7 @@ export const IssueDetailModal: React.FC = () => {
         img,
         img.naturalWidth || 1280,
         img.naturalHeight || 960,
-        { lat: activeUC.lat, lng: activeUC.lng }
+        { lat: activeUC?.lat || 24.8607, lng: activeUC?.lng || 67.0011 }
       );
       setOfficialResolveProof(result.full.dataUrl);
       showToast("Resolution completion photo verified & attached!");
@@ -146,11 +147,56 @@ export const IssueDetailModal: React.FC = () => {
 
   if (!selectedIssue) return null;
 
+  const issuePhotos = selectedIssue.photos || [];
+  const issueAfterPhotos = selectedIssue.afterPhotos || [];
   const isConfirmationWindow = selectedIssue.status === "marked_resolved";
-  const hasAfterPhoto = selectedIssue.afterPhotos && selectedIssue.afterPhotos.length > 0;
-  const beforePhoto = selectedIssue.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&h=600&fit=crop";
-  const afterPhoto = selectedIssue.afterPhotos?.[0]?.url || "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop";
+  const hasAfterPhoto = issueAfterPhotos.length > 0;
+  const beforePhoto =
+    issuePhotos[0]?.url ||
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&h=600&fit=crop";
+  const afterPhoto =
+    issueAfterPhotos[0]?.url ||
+    "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&h=600&fit=crop";
   const issueComments = selectedIssue.comments || [];
+
+  const issueUC =
+    (allUCs || []).find((u) => u.id === selectedIssue.ucId || u.name === selectedIssue.ucName) ||
+    activeUC;
+  const chairmanName = issueUC?.chairman?.name || activeUC?.chairman?.name || "UC Chairman";
+  const chairmanSeat =
+    issueUC?.chairman?.seatTitle ||
+    activeUC?.chairman?.seatTitle ||
+    `Chairman, ${selectedIssue.ucName || "UC"}`;
+  const townName = selectedIssue.townName || issueUC?.townName || activeUC?.townName || "Karachi";
+  const ucDisplayName = selectedIssue.ucName || issueUC?.name || activeUC?.name || "Karachi";
+
+  const formatSafeDate = (d?: string | null) => {
+    if (!d) return "Recently";
+    try {
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime())
+        ? "Recently"
+        : parsed.toLocaleDateString("en-PK", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
+    } catch {
+      return "Recently";
+    }
+  };
+
+  const formatCommentDate = (d?: string | null) => {
+    if (!d) return "Just now";
+    try {
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime())
+        ? "Recently"
+        : parsed.toLocaleDateString("en-PK", { month: "short", day: "numeric" });
+    } catch {
+      return "Recently";
+    }
+  };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +326,7 @@ export const IssueDetailModal: React.FC = () => {
               // Standard Photo View
               <div className="relative w-full h-full">
                 <Image
-                  src={selectedIssue.photos[activePhotoIndex]?.url || beforePhoto}
+                  src={issuePhotos[activePhotoIndex]?.url || beforePhoto}
                   alt={selectedIssue.title}
                   fill
                   sizes="(max-width: 640px) 100vw, 640px"
@@ -321,9 +367,9 @@ export const IssueDetailModal: React.FC = () => {
           </div>
 
           {/* Multi-Photo Angle Switcher */}
-          {selectedIssue.photos.length > 1 && !showSlider && (
+          {issuePhotos.length > 1 && !showSlider && (
             <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
-              {selectedIssue.photos.map((photo, pIdx) => (
+              {issuePhotos.map((photo, pIdx) => (
                 <button
                   key={photo.id || pIdx}
                   onClick={() => setActivePhotoIndex(pIdx)}
@@ -358,7 +404,7 @@ export const IssueDetailModal: React.FC = () => {
 
             <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs">
               <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{selectedIssue.addressApprox} · {selectedIssue.ucName}</span>
+              <span>{selectedIssue.addressApprox} · {ucDisplayName}</span>
             </div>
 
             {/* Reporter Origin & Verification Attribution */}
@@ -384,11 +430,7 @@ export const IssueDetailModal: React.FC = () => {
               </div>
 
               <span className="text-slate-400 text-[11px] font-medium">
-                {new Date(selectedIssue.createdAt).toLocaleDateString("en-PK", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {formatSafeDate(selectedIssue.createdAt)}
               </span>
             </div>
 
@@ -490,7 +532,7 @@ export const IssueDetailModal: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
                         <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                          Send Public Thank You to {activeUC.chairman.name}
+                          Send Public Thank You to {chairmanName}
                         </span>
                       </div>
                       <input
@@ -577,7 +619,7 @@ export const IssueDetailModal: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
                     <Building2 className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-                    <span>Chairman Action Desk · {activeUC.chairman.seatTitle}</span>
+                    <span>Chairman Action Desk · {chairmanSeat}</span>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 dark:bg-amber-900 text-amber-800 dark:text-amber-200">
                     Official Command
@@ -687,7 +729,7 @@ export const IssueDetailModal: React.FC = () => {
                             </button>
 
                             <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-slate-200 font-medium">
-                              <span>📍 {activeUC.name} Ground Site</span>
+                              <span>📍 {ucDisplayName} Ground Site</span>
                               <span className="bg-black/50 px-1.5 py-0.5 rounded text-[9px] font-mono">
                                 Geotagged
                               </span>
@@ -971,10 +1013,10 @@ export const IssueDetailModal: React.FC = () => {
                     <div className="flex items-center justify-between text-[11px] gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <div className="w-5 h-5 rounded-full bg-teal-600/20 text-teal-700 dark:text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                          {c.userName[0]}
+                          {(c.userName || "U")[0]?.toUpperCase() || "U"}
                         </div>
                         <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                          {c.userName}
+                          {c.userName || "Neighbor"}
                         </span>
                         <span
                           className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold shrink-0 ${
@@ -1002,7 +1044,7 @@ export const IssueDetailModal: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-slate-400 font-mono text-[10px]">
-                          {new Date(c.createdAt).toLocaleDateString("en-PK", { month: "short", day: "numeric" })}
+                          {formatCommentDate(c.createdAt)}
                         </span>
                         <button
                           type="button"
@@ -1047,7 +1089,7 @@ export const IssueDetailModal: React.FC = () => {
                   Posting as:{" "}
                   <strong className="text-slate-700 dark:text-slate-300">
                     {activeRole === "official"
-                      ? `${activeUC.chairman.name} (Chairman)`
+                      ? `${chairmanName} (Chairman)`
                       : activeRole === "ngo"
                       ? "Al-Khidmat / Edhi Relief Unit"
                       : activeRole === "community_leader"
@@ -1097,7 +1139,7 @@ export const IssueDetailModal: React.FC = () => {
               <div className="relative w-full aspect-1200/630 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(activeUC.townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(activeUC.chairman.name)}&status=${selectedIssue.status}`}
+                  src={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(chairmanName)}&status=${selectedIssue.status}`}
                   alt="Civic Accountability Card"
                   className="w-full h-full object-cover"
                 />
@@ -1108,7 +1150,7 @@ export const IssueDetailModal: React.FC = () => {
                 {/* WhatsApp */}
                 <a
                   href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                    `🚨 *Karachi Civic Alert* (${selectedIssue.ucName})\n"${selectedIssue.title}" has been open for *${selectedIssue.daysOpen} days* with ${selectedIssue.affectedCount} residents affected.\n\nResponsible: ${activeUC.chairman.name} (${activeUC.chairman.seatTitle})\nTrack on Karachi Civic: ${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${selectedIssue.id}`
+                    `🚨 *Karachi Civic Alert* (${selectedIssue.ucName})\n"${selectedIssue.title}" has been open for *${selectedIssue.daysOpen} days* with ${selectedIssue.affectedCount} residents affected.\n\nResponsible: ${chairmanName} (${chairmanSeat})\nTrack on Karachi Civic: ${typeof window !== "undefined" ? window.location.origin : "https://karachicivic.org"}?issue=${selectedIssue.id}`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1149,7 +1191,7 @@ export const IssueDetailModal: React.FC = () => {
                 </button>
 
                 <a
-                  href={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(activeUC.townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(activeUC.chairman.name)}&status=${selectedIssue.status}`}
+                  href={`/api/og?id=${encodeURIComponent(selectedIssue.id)}&title=${encodeURIComponent(selectedIssue.title)}&uc=${encodeURIComponent(selectedIssue.ucName)}&town=${encodeURIComponent(townName)}&daysOpen=${selectedIssue.daysOpen}&affected=${selectedIssue.affectedCount}&official=${encodeURIComponent(chairmanName)}&status=${selectedIssue.status}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer"

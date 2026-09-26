@@ -844,7 +844,7 @@ export const ReportTab: React.FC = () => {
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
             <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
               <Image
-                src={matchingDuplicate.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop"}
+                src={matchingDuplicate.photos?.[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop"}
                 alt="Duplicate preview"
                 fill
                 sizes="64px"

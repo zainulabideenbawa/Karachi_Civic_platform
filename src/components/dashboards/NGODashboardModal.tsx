@@ -261,7 +261,7 @@ export const NGODashboardModal: React.FC = () => {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-start gap-3">
-                          {issue.photos[0] && (
+                          {issue.photos?.[0]?.url && (
                             <img
                               src={issue.photos[0].url}
                               alt={issue.title}

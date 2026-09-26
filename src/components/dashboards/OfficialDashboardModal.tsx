@@ -520,7 +520,7 @@ export const OfficialDashboardModal: React.FC = () => {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-slate-100">
                       <Image
-                        src={issue.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop"}
+                        src={issue.photos?.[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop"}
                         alt={issue.title}
                         fill
                         sizes="48px"

@@ -578,7 +578,7 @@ export const MapTab: React.FC = () => {
             <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-slate-700">
               <Image
                 src={
-                  selectedIssuePin.photos[0]?.url ||
+                  selectedIssuePin.photos?.[0]?.url ||
                   "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&h=300&fit=crop"
                 }
                 alt={selectedIssuePin.title}

@@ -411,7 +411,7 @@ export const OfficialProfileModal: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2 h-32 rounded-lg overflow-hidden">
                       <div className="relative w-full h-full bg-slate-100">
                         <Image
-                          src={issue.photos[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop"}
+                          src={issue.photos?.[0]?.url || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop"}
                           alt="Before"
                           fill
                           sizes="200px"

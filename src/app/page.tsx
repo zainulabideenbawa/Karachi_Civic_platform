@@ -34,6 +34,7 @@ import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
 import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
 import { NGODashboardModal } from "@/components/dashboards/NGODashboardModal";
 import { ThinkTankModal } from "@/components/modals/ThinkTankModal";
+import { CivicErrorBoundary } from "@/components/CivicErrorBoundary";
 
 function CivicAppContent() {
   const { activeTab, setActiveTab, language, isAnyModalOpen, closeActiveModal } = useCivic();
@@ -129,30 +130,68 @@ function CivicAppContent() {
       {/* 5-Second Undo Toast */}
       <Toast />
 
-      {/* Global Modals & Dashboards */}
-      <IssueDetailModal />
-      <WhatsAppAuthModal />
-      <ScoreFormulaModal />
-      <OfficialDashboardModal />
-      <AdminConsoleModal />
-      <SearchModal />
-      <UCPollsModal />
-      <NGOsModal />
-      <BaithakPanelModal />
-      <LeaderProfileModal />
-      <BecomeLeaderModal />
-      <LeaderDashboardModal />
-      <UCIdeasBoardModal />
-      <FindMyUCModal />
-      <OnboardingModal />
-      <OfficialProfileModal />
+      {/* Global Modals & Dashboards Protected by ErrorBoundary */}
+      <CivicErrorBoundary fallbackTitle="Issue Detail could not be displayed">
+        <IssueDetailModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="WhatsApp Verification">
+        <WhatsAppAuthModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Civic Score Formula">
+        <ScoreFormulaModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Official Dashboard">
+        <OfficialDashboardModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Admin Oversight Console">
+        <AdminConsoleModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="City Search">
+        <SearchModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Citizen Polls">
+        <UCPollsModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="NGO Partners">
+        <NGOsModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Baithak Town Hall">
+        <BaithakPanelModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Community Leader Profile">
+        <LeaderProfileModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Become Leader">
+        <BecomeLeaderModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Leader Dashboard">
+        <LeaderDashboardModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="UC Ideas Board">
+        <UCIdeasBoardModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Find My UC">
+        <FindMyUCModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Onboarding Tour">
+        <OnboardingModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Official Profile">
+        <OfficialProfileModal />
+      </CivicErrorBoundary>
       <RoleSwitcherModal
         isOpen={isRoleSwitcherOpen}
         onClose={() => setIsRoleSwitcherOpen(false)}
       />
-      <WorkDoneShareModal />
-      <NGODashboardModal />
-      <ThinkTankModal />
+      <CivicErrorBoundary fallbackTitle="Work Done Proof Share">
+        <WorkDoneShareModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="NGO Relief Dashboard">
+        <NGODashboardModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Think Tank Hub">
+        <ThinkTankModal />
+      </CivicErrorBoundary>
     </div>
   );
 }

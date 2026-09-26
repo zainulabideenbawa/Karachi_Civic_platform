@@ -30,8 +30,9 @@ interface IssueCardProps {
 
 export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
   const { activeRole, openWorkDoneShare } = useCivic();
+  const issuePhotos = issue.photos || [];
   const photoUrl =
-    issue.photos[0]?.url ||
+    issuePhotos[0]?.url ||
     "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop";
 
   return (
@@ -86,10 +87,10 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
           <span className="inline-block px-2.5 py-1 rounded-xl text-xs font-bold bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-md backdrop-blur-md">
             {issue.categoryName}
           </span>
-          {issue.photos.length > 1 && (
+          {issuePhotos.length > 1 && (
             <span className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-bold bg-black/75 text-white backdrop-blur-md shadow-md border border-white/10">
               <Camera className="w-3 h-3 text-teal-400" />
-              <span>{issue.photos.length} angles</span>
+              <span>{issuePhotos.length} angles</span>
             </span>
           )}
         </div>
