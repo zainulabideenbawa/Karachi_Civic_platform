@@ -160,9 +160,31 @@ export const IssueDetailModal: React.FC = () => {
     setCommentText("");
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showShareModal) {
+          setShowShareModal(false);
+        } else {
+          setSelectedIssue(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showShareModal, setSelectedIssue]);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setSelectedIssue(null);
+      }}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-150 cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] cursor-default"
+      >
         {/* Top Sticky Header */}
         <div className="sticky top-0 z-20 flex items-center justify-between p-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -1043,8 +1065,16 @@ export const IssueDetailModal: React.FC = () => {
 
         {/* ================= VIRAL SHARE CARD MODAL (Section 11.2) ================= */}
         {showShareModal && (
-          <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex flex-col justify-end sm:justify-center p-3 sm:p-5 animate-in fade-in duration-150">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3.5 shadow-2xl text-white">
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowShareModal(false);
+            }}
+            className="absolute inset-0 z-30 bg-black/80 backdrop-blur-md flex flex-col justify-end sm:justify-center p-3 sm:p-5 animate-in fade-in duration-150 cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3.5 shadow-2xl text-white cursor-default"
+            >
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
