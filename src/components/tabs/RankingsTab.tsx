@@ -308,7 +308,15 @@ export const RankingsTab: React.FC = () => {
           {sortedTowns.map((town, index) => (
             <div
               key={town.id}
-              className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
+              onClick={() => {
+                const topUcInTown = allUCs.find((u) => u.townId === town.id);
+                if (topUcInTown) {
+                  setActiveUC(topUcInTown);
+                  setActiveTab("my-uc");
+                  showToast(`Viewing ${town.name} (${topUcInTown.name})`);
+                }
+              }}
+              className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-teal-500/60 dark:hover:border-teal-500/60 transition cursor-pointer group"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-xs shrink-0">
