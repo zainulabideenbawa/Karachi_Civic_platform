@@ -112,8 +112,19 @@ export const AdminConsoleModal: React.FC = () => {
         if (!adminMapContainerRef.current) return;
 
         if (adminMapInstanceRef.current) {
-          adminMapInstanceRef.current.remove();
+          try {
+            adminMapInstanceRef.current.remove();
+          } catch (e) {
+            console.warn("Leaflet remove error:", e);
+          }
           adminMapInstanceRef.current = null;
+        }
+
+        // Essential Leaflet DOM guard: clear _leaflet_id so L.map never throws 'Map container is already initialized'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((adminMapContainerRef.current as any)?._leaflet_id) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (adminMapContainerRef.current as any)._leaflet_id = null;
         }
 
         const map = L.map(adminMapContainerRef.current, {
@@ -129,6 +140,7 @@ export const AdminConsoleModal: React.FC = () => {
         }).addTo(map);
 
         allUCs.forEach((uc) => {
+          if (!uc || typeof uc.lat !== "number" || typeof uc.lng !== "number") return;
           const marker = L.circleMarker([uc.lat, uc.lng], {
             radius: 8,
             fillColor: "#0f766e",
@@ -142,8 +154,8 @@ export const AdminConsoleModal: React.FC = () => {
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; min-width: 170px; line-height: 1.4;">
               <strong style="color: #0f766e; font-size: 13px; display: block; margin-bottom: 2px;">${uc.name}</strong>
               <div style="color: #475569; font-size: 11px;">Town: <b>${uc.townName}</b></div>
-              <div style="color: #1e293b;">Chairman: <b>${uc.chairman.name}</b></div>
-              <div style="color: #64748b; font-size: 10px;">Party: ${uc.chairman.party}</div>
+              <div style="color: #1e293b;">Chairman: <b>${uc.chairman?.name || "Official"}</b></div>
+              <div style="color: #64748b; font-size: 10px;">Party: ${uc.chairman?.party || "N/A"}</div>
               <div style="color: #059669; font-weight: bold; margin-top: 2px;">Score: ${uc.score}/100</div>
               <div style="color: #94a3b8; font-size: 9px; font-family: monospace; margin-top: 2px;">${uc.lat.toFixed(4)}, ${uc.lng.toFixed(4)}</div>
             </div>
@@ -162,8 +174,17 @@ export const AdminConsoleModal: React.FC = () => {
       isMounted = false;
       clearTimeout(timer);
       if (adminMapInstanceRef.current) {
-        adminMapInstanceRef.current.remove();
+        try {
+          adminMapInstanceRef.current.remove();
+        } catch (e) {
+          console.warn("Cleanup map remove error:", e);
+        }
         adminMapInstanceRef.current = null;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (adminMapContainerRef.current && (adminMapContainerRef.current as any)?._leaflet_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (adminMapContainerRef.current as any)._leaflet_id = null;
       }
     };
   }, [isAdminConsoleOpen, activeSubTab, allUCs]);

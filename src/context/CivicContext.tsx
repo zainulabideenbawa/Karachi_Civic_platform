@@ -203,6 +203,10 @@ interface CivicContextType {
   updateProposalStatus: (briefId: string, status: ProposalTrackerStatus, note?: string) => void;
   exportIssuesCSV: (ucId?: string) => void;
 
+  // Mobile & Modal Back Navigation Support
+  isAnyModalOpen: boolean;
+  closeActiveModal: () => boolean;
+
   // Toasts with Undo
   toast: ToastMessage | null;
   showToast: (text: string, undoAction?: () => void, undoLabel?: string) => void;
@@ -298,6 +302,54 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
 
   const openWorkDoneShare = (issue: Issue) => {
     setWorkDoneShareIssue(issue);
+  };
+
+  // Mobile Back Button / Gesture support: detects any open modal
+  const isAnyModalOpen = Boolean(
+    selectedIssue ||
+    selectedOfficial ||
+    isWhatsAppAuthOpen ||
+    isScoreFormulaOpen ||
+    isOfficialDashboardOpen ||
+    isAdminConsoleOpen ||
+    isSearchOpen ||
+    isPollsModalOpen ||
+    isNGOsModalOpen ||
+    isBaithakPanelModalOpen ||
+    selectedLeader ||
+    isLeaderProfileOpen ||
+    isBecomeLeaderOpen ||
+    isLeaderDashboardOpen ||
+    isIdeasModalOpen ||
+    isFindMyUCOpen ||
+    isOnboardingOpen ||
+    workDoneShareIssue ||
+    isNGODashboardOpen ||
+    isThinkTankModalOpen
+  );
+
+  const closeActiveModal = (): boolean => {
+    if (selectedIssue) { setSelectedIssue(null); return true; }
+    if (workDoneShareIssue) { setWorkDoneShareIssue(null); return true; }
+    if (isSearchOpen) { setIsSearchOpen(false); return true; }
+    if (isAdminConsoleOpen) { setIsAdminConsoleOpen(false); return true; }
+    if (isOfficialDashboardOpen) { setIsOfficialDashboardOpen(false); return true; }
+    if (isNGODashboardOpen) { setIsNGODashboardOpen(false); return true; }
+    if (isThinkTankModalOpen) { setIsThinkTankModalOpen(false); return true; }
+    if (isFindMyUCOpen) { setIsFindMyUCOpen(false); return true; }
+    if (isScoreFormulaOpen) { setIsScoreFormulaOpen(false); return true; }
+    if (isWhatsAppAuthOpen) { setIsWhatsAppAuthOpen(false); return true; }
+    if (isPollsModalOpen) { setIsPollsModalOpen(false); return true; }
+    if (isNGOsModalOpen) { setIsNGOsModalOpen(false); return true; }
+    if (isBaithakPanelModalOpen) { setIsBaithakPanelModalOpen(false); return true; }
+    if (selectedOfficial) { setSelectedOfficial(null); return true; }
+    if (selectedLeader) { setSelectedLeader(null); return true; }
+    if (isLeaderProfileOpen) { setIsLeaderProfileOpen(false); return true; }
+    if (isBecomeLeaderOpen) { setIsBecomeLeaderOpen(false); return true; }
+    if (isLeaderDashboardOpen) { setIsLeaderDashboardOpen(false); return true; }
+    if (isIdeasModalOpen) { setIsIdeasModalOpen(false); return true; }
+    if (isOnboardingOpen) { setIsOnboardingOpen(false); return true; }
+    return false;
   };
 
   const banUser = (userId: string, reason: string) => {
@@ -2190,6 +2242,8 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         submitStageApplication,
         updateProposalStatus,
         exportIssuesCSV,
+        isAnyModalOpen,
+        closeActiveModal,
       }}
     >
       {children}

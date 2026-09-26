@@ -412,19 +412,19 @@ export const MapTab: React.FC = () => {
             <span>{filteredIssues.length} Live Pins</span>
           </div>
 
-          {/* Status Quick Pill Dropdown */}
-          <div className="flex items-center gap-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 shrink-0">
-            <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+          {/* Status Quick Pill Dropdown (Compact & Sleek) */}
+          <div className="flex items-center gap-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md px-2 py-0.5 rounded-lg text-[11px] font-medium shadow-xs border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shrink-0">
+            <Layers className="w-3 h-3 text-teal-600 dark:text-teal-400 shrink-0" />
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-hidden py-0.5"
+              className="bg-transparent text-[11px] font-medium text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-hidden py-0.5 pr-0.5"
             >
-              <option value="all">All Statuses</option>
-              <option value="open">Open Issues</option>
+              <option value="all">Status: All</option>
+              <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
-              <option value="marked_resolved">Waiting Confirmation</option>
-              <option value="confirmed">Confirmed Fixed</option>
+              <option value="marked_resolved">Waiting Fix</option>
+              <option value="confirmed">Confirmed</option>
             </select>
           </div>
 
