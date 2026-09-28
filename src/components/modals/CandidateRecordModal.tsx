@@ -26,6 +26,14 @@ export const CandidateRecordModal: React.FC = () => {
     isElectionMode,
   } = useCivic();
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsCandidateRecordOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setIsCandidateRecordOpen]);
+
   if (!isCandidateRecordOpen) return null;
 
   // Candidates in this UC who filed nomination papers
