@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   ChevronRight,
   ShieldAlert,
+  Vote,
+  AlertCircle,
 } from "lucide-react";
 
 export const RankingsTab: React.FC = () => {
@@ -32,6 +34,8 @@ export const RankingsTab: React.FC = () => {
     setSelectedOfficial,
     activeRole,
     showToast,
+    isElectionMode,
+    setIsCandidateRecordOpen,
   } = useCivic();
 
   const [leaderboardType, setLeaderboardType] = useState<"ucs" | "towns" | "leaders" | "improved">("ucs");
@@ -112,7 +116,13 @@ export const RankingsTab: React.FC = () => {
           }`}
         >
           <span>Leaders</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          {isElectionMode ? (
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-white font-bold leading-tight">
+              FROZEN
+            </span>
+          ) : (
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          )}
         </button>
         <button
           onClick={() => setLeaderboardType("improved")}
@@ -359,6 +369,24 @@ export const RankingsTab: React.FC = () => {
       {/* ================= LIST 3: COMMUNITY LEADERS (SPEC ADDENDUM 01) ================= */}
       {leaderboardType === "leaders" && (
         <div className="space-y-2">
+          {/* Election Mode Notice */}
+          {isElectionMode && (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <div>
+                  <span className="font-bold">Frozen for Elections:</span> Leader scores and rankings are locked at their last values per ECP rules until results.
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCandidateRecordOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1 self-start sm:self-auto shrink-0"
+              >
+                <Vote className="w-3.5 h-3.5" /> Candidate Record
+              </button>
+            </div>
+          )}
+
           {/* Integrity & Disclaimer Notice */}
           <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 text-xs text-indigo-900 dark:text-indigo-300 flex items-start gap-2">
             <ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
@@ -373,67 +401,90 @@ export const RankingsTab: React.FC = () => {
               if (leadersScope === "town") return leader.townId === activeUC.townId;
               return true;
             })
-            .sort((a, b) => b.score - a.score)
-            .map((leader, index) => (
-              <div
-                key={leader.id}
-                onClick={() => {
-                  setSelectedLeader(leader);
-                  setIsLeaderProfileOpen(true);
-                }}
-                className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/70 hover:shadow-xs cursor-pointer transition"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs shrink-0 border border-indigo-200 dark:border-indigo-900">
-                    #{index + 1}
-                  </div>
+            .sort((a, b) => {
+              const aHas = a.scoreBreakdown ? a.scoreBreakdown.hasEnoughData : true;
+              const bHas = b.scoreBreakdown ? b.scoreBreakdown.hasEnoughData : true;
+              if (aHas && !bHas) return -1;
+              if (!aHas && bHas) return 1;
+              return b.score - a.score;
+            })
+            .map((leader, index) => {
+              const hasEnough = leader.scoreBreakdown ? leader.scoreBreakdown.hasEnoughData : true;
 
-                  <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-slate-700">
-                    <img
-                      src={leader.photoUrl}
-                      alt={leader.realName}
-                      className="w-full h-full object-cover"
-                    />
-                    {leader.identityVerified && (
-                      <div
-                        className="absolute -bottom-0.5 -right-0.5 bg-emerald-600 text-white p-0.5 rounded-full"
-                        title="Identity Verified"
-                      >
-                        <ShieldCheck className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-                  </div>
+              return (
+                <div
+                  key={leader.id}
+                  onClick={() => {
+                    setSelectedLeader(leader);
+                    setIsLeaderProfileOpen(true);
+                  }}
+                  className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/70 hover:shadow-xs cursor-pointer transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs shrink-0 border border-indigo-200 dark:border-indigo-900">
+                      {hasEnough ? `#${index + 1}` : "—"}
+                    </div>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                        {leader.realName}
-                      </span>
-                      {leader.plansToContest === "yes" && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200/50">
-                          Candidate
-                        </span>
+                    <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-slate-700">
+                      <img
+                        src={leader.photoUrl}
+                        alt={leader.realName}
+                        className="w-full h-full object-cover"
+                      />
+                      {leader.identityVerified && (
+                        <div
+                          className="absolute -bottom-0.5 -right-0.5 bg-emerald-600 text-white p-0.5 rounded-full"
+                          title="Identity Verified"
+                        >
+                          <ShieldCheck className="w-2.5 h-2.5" />
+                        </div>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-400 truncate">
-                      {leader.ucName} • {leader.party}
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <div className="text-base font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                      {leader.score.toFixed(1)}
-                    </div>
-                    <div className="text-[9px] font-semibold text-emerald-600 flex items-center justify-end gap-0.5">
-                      <TrendingUp className="w-2.5 h-2.5" /> +{leader.trend30d}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                          {leader.realName}
+                        </span>
+                        {(leader.hasFiledNomination || leader.plansToContest === "yes") && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200/50">
+                            Candidate
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate">
+                        {leader.ucName} • {leader.party}
+                      </div>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      {hasEnough ? (
+                        <>
+                          <div className="text-base font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                            {leader.score.toFixed(1)}
+                          </div>
+                          <div className="text-[9px] font-semibold text-emerald-600 flex items-center justify-end gap-0.5">
+                            <TrendingUp className="w-2.5 h-2.5" /> +{leader.trend30d}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-xs font-bold text-slate-400 tabular-nums">
+                            Unranked
+                          </div>
+                          <div className="text-[9px] font-semibold text-amber-600">
+                            Not enough activity
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       )}
 

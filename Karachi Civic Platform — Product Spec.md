@@ -1077,3 +1077,182 @@ Launch a PWA in one pilot town in about 10–12 weeks. Expand to all of Karachi 
 - [ ] Content team: who produces the daily videos
 - [ ] Whether fix satisfaction ratings get a small weight (≤ 5%) in the score after 3 months
 - [ ] Supabase session method for the WhatsApp login (admin-issued session vs. third-party auth), and the penetration testing vendor
+
+---
+
+# Spec Addendum 01 — Community Leaders (aspiring representatives)
+
+**Date:** 25 Sep 2026  
+**Applies to:** Karachi Civic Platform — Product Spec (the main spec already in the repo)  
+**How to use:** This addendum adds a new user type. Where it conflicts with the main spec, this addendum wins. Section numbers below refer to the main spec.
+
+---
+
+## 1. Summary
+
+People who plan to contest local elections in the coming years (or who simply want to serve their area) can join as **Community Leaders**. They help residents by adopting and resolving issues, organizing events and making public pledges. They get their own **public profile and ranking**, separate from elected officials, so residents can judge them by their work before they ever ask for a vote.
+
+Principles carried over from the main spec:
+
+- **Work, not popularity.** Ranked only on verified outcomes, never on likes, followers or endorsements.
+- **Separate leaderboards.** Community Leaders are never ranked in the same list as elected officials (different powers and budgets). Both appear on the UC page, clearly labelled.
+- **Neutral.** Party affiliation is optional and shown as a plain fact. No party leaderboard, no campaigning.
+- **Hard to game.** Leaders can't earn points from issues they, their team or their linked accounts reported or confirmed.
+
+---
+
+## 2. New role: Community Leader
+
+Add to the roles table (main spec section 2):
+
+| Role | Who | How they get it | Can do |
+|---|---|---|---|
+| Community Leader | A resident who wants to serve their UC, including future election candidates | Applies in the app → identity check → admin approval | Adopt and resolve issues in their UC, respond to issues (labelled as a community response), organize events, make pledges, apply for think tank stages, add up to 5 team members, see their own score breakdown |
+
+**Eligibility and rules**
+
+- Must be a **verified resident** of the UC they register for (main spec section 4).
+- **One UC per person.** They can switch UC at most once every 12 months, and their score history stays with the old UC.
+- **Real identity required.** Community Leader profiles are public, so the leader must use their real name, a real photo taken with the in-app camera, and pass an identity check (a live selfie matched against their CNIC photo by an admin, on a short video call or in person). Store only the verification result and date. **Don't store the CNIC number or image.**
+- **Optional fields:** party affiliation (or "Independent"), and "Plans to contest local elections" (yes/no). Both are shown as plain facts on the profile.
+- **Elected officials can't also be Community Leaders** while in office.
+- **If a Community Leader wins an election,** their leader history stays visible and links to their new official profile ("Was a Community Leader in UC-7, 2026–2027"). Their official score starts fresh with the term.
+
+---
+
+## 3. What Community Leaders can do
+
+| Action | Rules |
+|---|---|
+| **Adopt an issue** | Only in their own UC. The issue must have been reported by someone else, be at least 7 days old, and not be adopted by an NGO or another leader. They set a target date (max 60 days). Max 10 active adoptions at a time. |
+| **Resolve an adopted issue** | Same flow as officials: live after-photo at the location (in-app camera), then citizen confirmation (main spec 5.3). "Community resolved" credit goes to the leader. |
+| **Respond to an issue** | Shown as "Community Leader response", below the official response, never pinned above it. |
+| **Organize events** | Same event flow as officials and NGOs (main spec 8.2), including online events. |
+| **Make pledges** | Uses the promise tracker (main spec 8.3). Each pledge needs a due date and a measurable outcome ("Clear the Block 5 drain before monsoon"). |
+| **Think tank stages** | Can apply like any citizen (main spec 9.1). Their leader status gives no extra points in stage selection. |
+| **Team** | Up to 5 declared team members (verified users). Team members can help on adopted issues and events, but their votes and confirmations never count toward the leader's issues. |
+| **Suggestions** | Can post and reply to ideas on the UC Ideas board. Replies are labelled "Community Leader". |
+
+**Not allowed** (added to content rules, main spec 14.1):
+
+- Campaign content: "Vote for me", election symbols, party slogans, rally announcements.
+- Handing out cash or goods through platform events.
+- Attacking other leaders or officials personally. Criticism must stay about work and outcomes.
+
+---
+
+## 4. Community Leader score
+
+The formula is published on the "How scores work" page like the official score. Rolling 90 days, recalculated every 6 hours by the same locked database job (main spec 13.5).
+
+| Component | Weight | Measure |
+|---|---|---|
+| Impact | 40% | Weighted adopted issues confirmed resolved (same issue weighting as main spec 7.2: severity × affected count) |
+| Reliability | 20% | Share resolved by the committed target date, minus the reopen rate |
+| Community events | 15% | Verified events organized (max 2 a month counted) and verified attendance |
+| Pledges kept | 15% | Pledges kept ÷ pledges due |
+| Responsiveness | 10% | Share of their adoptions that got a first update within 72 hours |
+
+- **Low-activity adjustment:** the same pull toward the average as officials (main spec 7.3), with k = 10. Fewer than 3 confirmed resolutions in 90 days shows "Not enough activity" and no rank.
+- **Monthly cap:** at most 15 resolved issues a month count toward Impact, so a leader can't flood the system.
+- **Fix satisfaction ratings and thank-yous** are shown on the profile but don't count in the score (same rule as officials, main spec 11.10).
+- **Lifetime stats** stay visible even when the 90-day score changes: total issues resolved, events, pledges kept and broken.
+
+---
+
+## 5. Anti-gaming rules (add to main spec 13.5, Layer 3 table)
+
+Aspiring candidates have the strongest reason of anyone to game the system. These rules are mandatory.
+
+| Attack | Defence |
+|---|---|
+| Leader or team reports fake issues, then "resolves" them | Issues reported, marked affected or given evidence by the leader, their team or linked accounts can never be adopted by that leader |
+| Supporters confirm fake fixes | Confirmations from the leader's team, linked accounts, and accounts that joined within 30 days before the adoption don't count for that leader. Reopens always beat a thin "fixed" majority. |
+| Undeclared supporter accounts | Nightly detection of shared devices, IP ranges, and accounts that always confirm the same leader. Matches are auto-linked to the leader (zero weight) and flagged for admin review. |
+| Staged problems (e.g., dumping garbage to clean it up on camera) | The issue must be reported by someone else and at least 7 days old before adoption. Perceptual hashing flags reused photos. Repeated reports at the same spot shortly after a "resolution" count as reopens against the leader. |
+| Rival leaders mass-reopening each other's fixes | Only the reporter, verified residents of the UC and people within 300 m can vote. Rival leaders and their teams are excluded from votes on each other's issues. |
+| Leader poaching an official's nearly-done fix | Adoption is blocked while an official has marked the issue "In progress" within the last 14 days |
+
+Penalties: a confirmed gaming case → the affected resolutions are removed from the score, logged in the public audit log, and the leader gets a strike. 2 strikes → 90-day suspension from the leaderboard. 3 → removal of Community Leader status.
+
+---
+
+## 6. Election period mode
+
+Get a lawyer to review this section against the ECP code of conduct before building it.
+
+- When the ECP announces a local election schedule, an admin switches on **Election mode** for the affected area.
+- From schedule announcement until results:
+  - Community Leader rankings are **frozen** at their last value and labelled "Frozen for elections". Profiles, history and lifetime stats stay visible.
+  - No new pledges. Leaders who have filed nomination papers can't create events.
+  - Leader share cards are disabled, so the platform can't be used as campaign material.
+  - Official scores keep running as normal, since that's public performance data.
+- A new **Candidate record** page per UC (optional, lawyer permitting) lists every Community Leader who filed papers there, with their frozen record. Candidates who never used the platform are not listed. The page makes no endorsements.
+
+---
+
+## 7. UX changes
+
+**Public profile (Community Leader)** — same layout rules as official profiles (main spec 11.0a, 11.2):
+
+- Top: photo, name, UC, "Community Leader" badge, "Verified identity" tick, party (or Independent), "Plans to contest" if they chose to show it.
+- Middle: score ring, rank among leaders in the UC, town and Karachi, trend → breakdown (collapsed) → active adoptions with target dates → resolved issues (before/after) → pledges → events → team.
+- Bottom action: **Follow** (get updates on their adoptions and events).
+
+**UC page:** add a "Community Leaders in this UC" section below the official team, ranked by leader score, with a clear label: "Residents working for this UC. Not elected officials."
+
+**Rankings tab:** the segmented control becomes **UCs / Towns / Leaders / Most improved**. The Leaders tab can filter by UC, town or all of Karachi.
+
+**Becoming a leader (W11, new workflow):**
+
+1. Me tab → **Become a Community Leader**.
+2. One screen of what it means and the rules (no campaigning, anti-gaming, real identity).
+3. Form: real name, photo (in-app camera), short bio (300 characters), why you want to serve (300), party or Independent, plans to contest (yes/no/prefer not to say).
+4. Book an identity check (video call slot) or visit a partner office.
+5. Admin approves → badge, profile goes live, leader dashboard unlocks.
+
+Target: under 3 minutes to apply, excluding the identity check.
+
+**Leader dashboard** (a new view, same style as the NGO dashboard in main spec 10.2):
+
+- Home: score, ranks, trend, and the next best action ("3 issues in UC-7 have been open over 30 days. Adopt one?").
+- Discover: issues open for adoption in their UC, sorted by age and affected count.
+- My adoptions: target dates, updates, mark resolved.
+- Pledges, events, team (add or remove, max 5).
+- Monthly report card PDF and shareable badges, except in Election mode.
+
+**Notifications for leaders:** weekly summary, adoption confirmations and reopens, and new issues in their UC open for over 7 days (max 1 a day).
+
+---
+
+## 8. Data model changes (main spec 13.2)
+
+- **Generalize adoption:** replace `issues.adopted_by_ngo_id` with `adopted_by_type` (`ngo` | `leader`) + `adopted_by_id` + `adopted_at` + `target_date`. **Do this in Phase 1** even if leaders ship later, to avoid a migration.
+- **Generalize promises:** `promises.owner_type` (`official` | `leader`) + `owner_id`.
+- New tables:
+  - `community_leaders` (id, user_id, uc_id, real_name, slug, photo_key, bio, why_serve, party, plans_to_contest, identity_verified_at, verified_by, status: pending/active/suspended/removed, uc_changed_at, strikes)
+  - `leader_team_members` (leader_id, user_id, added_at, removed_at)
+  - `linked_accounts` (leader_id, user_id, reason: declared/detected, detected_at, reviewed_by)
+  - `leader_scores` (leader_id, period, formula_version, components, raw, final, rank_uc, rank_town, rank_city)
+  - `election_modes` (area_type, area_id, starts_at, ends_at, enabled_by)
+- `leader_scores` gets the same lockdown as `scores`: writable only by the `score_engine` database role.
+
+---
+
+## 9. Phasing
+
+- **Phase 1 (MVP):** schema generalization only (section 8). No leader UI yet.
+- **Phase 2:** full Community Leaders feature (application, identity check, dashboard, profile, leaderboard, anti-gaming jobs), launched after the official scoring loop has worked in the pilot town for at least 1 month.
+- **Before the next local elections:** Election mode, after legal review.
+
+**New KPIs:** approved leaders in the pilot town (target 20), issues resolved by leaders per month, share of leader resolutions confirmed (target ≥ 80%), gaming cases found.
+
+---
+
+## 10. Open questions
+
+- [ ] Identity check method: video call by admin, or in-person at partner NGO offices?
+- [ ] Should "Plans to contest" be public by default or opt-in? (Recommended: opt-in.)
+- [ ] Election mode and the Candidate record page: lawyer review against the ECP code of conduct.
+- [ ] Should town-level leaders exist (serving a whole town), or UC only? (Recommended: UC only for now.)
+

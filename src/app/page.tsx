@@ -34,6 +34,7 @@ import { RoleSwitcherModal } from "@/components/modals/RoleSwitcherModal";
 import { WorkDoneShareModal } from "@/components/modals/WorkDoneShareModal";
 import { NGODashboardModal } from "@/components/dashboards/NGODashboardModal";
 import { ThinkTankModal } from "@/components/modals/ThinkTankModal";
+import { CandidateRecordModal } from "@/components/modals/CandidateRecordModal";
 import { CivicErrorBoundary } from "@/components/CivicErrorBoundary";
 
 function CivicAppContent() {
@@ -191,6 +192,9 @@ function CivicAppContent() {
       </CivicErrorBoundary>
       <CivicErrorBoundary fallbackTitle="Think Tank Hub">
         <ThinkTankModal />
+      </CivicErrorBoundary>
+      <CivicErrorBoundary fallbackTitle="Candidate Transparency Record">
+        <CandidateRecordModal />
       </CivicErrorBoundary>
     </div>
   );

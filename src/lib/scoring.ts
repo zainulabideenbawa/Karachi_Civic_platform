@@ -180,3 +180,143 @@ export function computeUCScoreBreakdown(
     eligibleCount: n,
   };
 }
+
+/**
+ * Computes Community Leader 90-day score breakdown per Spec Addendum 01, Section 4.
+ * Recalculated every 6 hours by PostgreSQL engine.
+ * - Impact (40%): Weighted confirmed resolved adopted issues (max 15/month)
+ * - Reliability (20%): On-time resolution rate minus reopen rate
+ * - Events (15%): Verified events (max 2/month) + attendance
+ * - Pledges (15%): Pledges kept ÷ pledges due
+ * - Responsiveness (10%): First update within 72h of adoption
+ * - Low-activity: k = 10 smoothing; <3 confirmed resolutions in 90d shows "Not enough activity"
+ */
+export function computeLeaderScoreBreakdown(
+  adoptedIssues: Issue[],
+  eventsCount: number = 0,
+  pledgesKept: number = 0,
+  pledgesDue: number = 0,
+  cityMean: number = CITY_MEAN_DEFAULT
+): import("@/types/civic").LeaderScoreBreakdown {
+  const totalAdopted = adoptedIssues.length;
+
+  let totalWeightedAdopted = 0;
+  let totalWeightedResolved = 0;
+  let confirmedResolutions90d = 0;
+  let onTimeResolutionsCount = 0;
+  let reopenedCount = 0;
+  let totalResolutionsAttempted = 0;
+  let updatedWithin72hCount = 0;
+
+  // Monthly cap: max 15 resolutions per month count toward Impact (45 over 90 days)
+  const MAX_RESOLUTIONS_PER_MONTH = 15;
+  const MAX_RESOLUTIONS_90D = MAX_RESOLUTIONS_PER_MONTH * 3;
+
+  for (const issue of adoptedIssues) {
+    const weight = calculateIssueWeight(
+      issue.severity === "dangerous",
+      issue.weightedAffected || 1
+    );
+    totalWeightedAdopted += weight;
+
+    // Check resolution
+    if (issue.status === "confirmed" || issue.status === "community_resolved") {
+      totalResolutionsAttempted += 1;
+      if (confirmedResolutions90d < MAX_RESOLUTIONS_90D) {
+        confirmedResolutions90d += 1;
+        totalWeightedResolved += weight;
+      }
+
+      // Check if resolved on time (within targetDate)
+      if (issue.targetDate) {
+        const target = new Date(issue.targetDate).getTime();
+        const updated = new Date(issue.updatedAt || issue.createdAt).getTime();
+        if (updated <= target) {
+          onTimeResolutionsCount += 1;
+        }
+      } else {
+        onTimeResolutionsCount += 1;
+      }
+    } else if (issue.status === "marked_resolved") {
+      totalResolutionsAttempted += 1;
+      // Pending citizen confirmation counts at 50%
+      totalWeightedResolved += weight * 0.5;
+    } else if (issue.status === "reopened") {
+      totalResolutionsAttempted += 1;
+      reopenedCount += 1;
+    }
+
+    // Responsiveness: check if updated within 72 hours of adoption
+    if (issue.leaderResponse || (issue.comments && issue.comments.some((c) => c.userRole === "community_leader"))) {
+      updatedWithin72hCount += 1;
+    } else if (issue.status === "in_progress" || issue.status === "marked_resolved") {
+      updatedWithin72hCount += 1;
+    }
+  }
+
+  // 1. Impact (40%): Weighted resolutions vs total adopted weight
+  const impactRatio =
+    totalWeightedAdopted > 0 ? totalWeightedResolved / totalWeightedAdopted : 0;
+  const impactScore = Math.min(100, Math.round(impactRatio * 100));
+
+  // 2. Reliability (20%): On-time rate minus reopen rate
+  const onTimeRate =
+    totalResolutionsAttempted > 0
+      ? onTimeResolutionsCount / totalResolutionsAttempted
+      : totalAdopted === 0
+      ? 1
+      : 0.8;
+  const reopenRate =
+    totalResolutionsAttempted > 0
+      ? reopenedCount / totalResolutionsAttempted
+      : 0;
+  const reliabilityScore = Math.max(
+    0,
+    Math.min(100, Math.round((onTimeRate - reopenRate) * 100))
+  );
+
+  // 3. Community events (15%): Max 2/month (6 in 90 days)
+  const eventsCapped = Math.min(eventsCount, 6);
+  const eventsScore = Math.min(100, Math.round((eventsCapped / 6) * 100));
+
+  // 4. Pledges kept (15%): Pledges kept ÷ pledges due
+  const pledgesScore =
+    pledgesDue > 0
+      ? Math.min(100, Math.round((pledgesKept / pledgesDue) * 100))
+      : 75; // Baseline if no pledges due yet
+
+  // 5. Responsiveness (10%): Share of adoptions that got first update within 72 hours
+  const responsivenessRatio =
+    totalAdopted > 0 ? updatedWithin72hCount / totalAdopted : 1.0;
+  const responsivenessScore = Math.min(100, Math.round(responsivenessRatio * 100));
+
+  // Raw weighted sum
+  const rawScore =
+    impactScore * 0.40 +
+    reliabilityScore * 0.20 +
+    eventsScore * 0.15 +
+    pledgesScore * 0.15 +
+    responsivenessScore * 0.10;
+
+  // Bayesian smoothing with k = 10 (pull toward city average)
+  const K_LEADER = 10;
+  const smoothedScore =
+    (totalAdopted / (totalAdopted + K_LEADER)) * rawScore +
+    (K_LEADER / (totalAdopted + K_LEADER)) * cityMean;
+
+  // Minimum 3 confirmed resolutions in 90 days required for public rank
+  const hasEnoughData = confirmedResolutions90d >= 3;
+
+  return {
+    impactScore,
+    reliabilityScore,
+    eventsScore,
+    pledgesScore,
+    responsivenessScore,
+    rawScore: Math.round(rawScore * 10) / 10,
+    smoothedScore: Math.round(smoothedScore * 10) / 10,
+    resolvedIn90dCount: confirmedResolutions90d,
+    monthlyResolutionsCapped: Math.min(MAX_RESOLUTIONS_PER_MONTH, confirmedResolutions90d),
+    hasEnoughData,
+  };
+}

@@ -220,6 +220,43 @@ export interface PromiseRecord {
   ownerName?: string;
 }
 
+export interface LeaderScoreBreakdown {
+  impactScore: number;         // 40% (Weighted adopted issues confirmed resolved; severity * affected count)
+  reliabilityScore: number;    // 20% (Share resolved by committed target date minus reopen rate)
+  eventsScore: number;         // 15% (Verified events organized max 2/month + attendance)
+  pledgesScore: number;        // 15% (Pledges kept / pledges due)
+  responsivenessScore: number; // 10% (First update within 72h of adoption)
+  rawScore: number;
+  smoothedScore: number;
+  resolvedIn90dCount: number;
+  monthlyResolutionsCapped: number; // Max 15 per month count towards Impact
+  hasEnoughData: boolean;      // Fewer than 3 confirmed resolutions in 90 days = "Not enough activity"
+}
+
+export interface ElectionModeRecord {
+  id: string;
+  areaType: "city" | "town" | "uc";
+  areaId: string;
+  areaName: string;
+  isActive: boolean;
+  startsAt: string;
+  endsAt: string;
+  enabledBy: string;
+  nominationWindowOpen: boolean;
+}
+
+export interface LinkedAccountRecord {
+  id: string;
+  leaderId: string;
+  leaderName: string;
+  userId: string;
+  userName: string;
+  reason: "declared_team" | "shared_device" | "ip_cluster" | "unusual_confirm_pattern";
+  detectedAt: string;
+  reviewedBy?: string;
+  status: "flagged" | "auto_linked_zero_weight" | "cleared";
+}
+
 export interface CommunityLeader {
   id: string;
   userId: string;
@@ -234,10 +271,12 @@ export interface CommunityLeader {
   whyServe: string;
   party: string;
   plansToContest: "yes" | "no" | "prefer_not_to_say";
+  hasFiledNomination?: boolean;
   identityVerified: boolean;
   identityVerifiedAt: string;
   status: "pending" | "active" | "suspended" | "removed";
   strikes: number;
+  ucChangedAt?: string;
   score: number;
   rankInUc: number;
   rankInTown: number;
@@ -254,6 +293,7 @@ export interface CommunityLeader {
   fixSatisfaction: number;
   teamMembers: { id: string; name: string; role: string }[];
   isFrozenForElection?: boolean;
+  scoreBreakdown?: LeaderScoreBreakdown;
 }
 
 export interface PollRecord {

@@ -21,6 +21,7 @@ import {
   FileCheck2,
   AlertCircle,
   ExternalLink,
+  Vote,
 } from "lucide-react";
 
 export const LeaderProfileModal: React.FC = () => {
@@ -32,12 +33,15 @@ export const LeaderProfileModal: React.FC = () => {
     issues,
     setSelectedIssue,
     showToast,
+    isElectionMode,
   } = useCivic();
 
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"adoptions" | "pledges" | "team">("adoptions");
 
   if (!isLeaderProfileOpen || !selectedLeader) return null;
+
+  const isFrozen = Boolean(isElectionMode || selectedLeader.isFrozenForElection);
 
   // Filter issues adopted or resolved by this leader
   const leaderAdoptions = issues.filter(
@@ -70,7 +74,17 @@ export const LeaderProfileModal: React.FC = () => {
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+          {/* Election Period Mode Banner */}
+          {isFrozen && (
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-300">
+              <Vote className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Frozen for Elections:</span> Under ECP Code of Conduct, Community Leader rankings and scores are frozen at their pre-election values. Profiles and lifetime verified history remain transparently visible for voters.
+              </div>
+            </div>
+          )}
+
           {/* Official Disclaimer Banner */}
           <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-900 dark:text-amber-300">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -90,7 +104,7 @@ export const LeaderProfileModal: React.FC = () => {
               {selectedLeader.identityVerified && (
                 <div
                   className="absolute -bottom-1 -right-1 bg-emerald-600 text-white p-1 rounded-full shadow-md"
-                  title="Verified Identity: Real face & CNIC live video check passed"
+                  title="Verified Identity: Live selfie matched against CNIC photo"
                 >
                   <ShieldCheck className="w-4 h-4" />
                 </div>
@@ -108,13 +122,19 @@ export const LeaderProfileModal: React.FC = () => {
                     Verified Identity
                   </span>
                 )}
+                {selectedLeader.hasFiledNomination && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/50 px-2 py-0.5 rounded-full border border-purple-300 dark:border-purple-800">
+                    <Vote className="w-3 h-3" />
+                    Candidate
+                  </span>
+                )}
               </div>
 
               <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                 {selectedLeader.ucName} • {selectedLeader.townName}
               </div>
 
-              {/* Facts (Party & Intent) */}
+              {/* Facts (Party & Intent - Plain Facts) */}
               <div className="pt-1 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 text-xs">
                 <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700">
                   Affiliation: <strong className="text-slate-900 dark:text-white">{selectedLeader.party}</strong>
@@ -168,31 +188,33 @@ export const LeaderProfileModal: React.FC = () => {
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
-              <div className="text-[10px] uppercase font-bold text-slate-500">UC-7 Rank</div>
-              <div className="text-xl font-black text-slate-900 dark:text-white">
-                #{selectedLeader.rankInUc}
+              <div className="text-[10px] uppercase font-bold text-slate-500">UC Rank</div>
+              <div className="text-lg font-black text-slate-900 dark:text-white">
+                {selectedLeader.hasEnoughData ? `#${selectedLeader.rankInUc}` : "Not enough data"}
               </div>
-              <div className="text-[10px] text-slate-400">of active leaders</div>
+              <div className="text-[10px] text-slate-400">
+                {selectedLeader.hasEnoughData ? "in this UC" : "Need ≥3 fixes"}
+              </div>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
               <div className="text-[10px] uppercase font-bold text-slate-500">Town Rank</div>
-              <div className="text-xl font-black text-slate-900 dark:text-white">
-                #{selectedLeader.rankInTown}
+              <div className="text-lg font-black text-slate-900 dark:text-white">
+                {selectedLeader.hasEnoughData ? `#${selectedLeader.rankInTown}` : "Unranked"}
               </div>
               <div className="text-[10px] text-slate-400">in Gulshan Town</div>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
               <div className="text-[10px] uppercase font-bold text-slate-500">Karachi Rank</div>
-              <div className="text-xl font-black text-slate-900 dark:text-white">
-                #{selectedLeader.rankInCity}
+              <div className="text-lg font-black text-slate-900 dark:text-white">
+                {selectedLeader.hasEnoughData ? `#${selectedLeader.rankInCity}` : "Unranked"}
               </div>
               <div className="text-[10px] text-slate-400">city-wide</div>
             </div>
           </div>
 
-          {/* Formula Breakdown Accordion */}
+          {/* Formula Breakdown Accordion (Section 4) */}
           <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
             <button
               onClick={() => setIsBreakdownOpen(!isBreakdownOpen)}
@@ -226,8 +248,10 @@ export const LeaderProfileModal: React.FC = () => {
                   <span>Responsiveness (First update within 72 hrs of adoption)</span>
                   <span className="font-bold text-slate-900 dark:text-white">10%</span>
                 </div>
-                <div className="mt-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-500">
-                  *Recalculated every 6 hours by the locked PostgreSQL database role. Max 15 resolutions/mo count toward score to eliminate system flooding.
+                <div className="mt-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-500 space-y-1">
+                  <div>*Recalculated every 6 hours by the locked PostgreSQL database role.</div>
+                  <div>*Monthly cap: At most 15 resolutions/mo count toward Impact to prevent flooding.</div>
+                  <div>*Low activity: Fewer than 3 confirmed resolutions in 90 days displays &ldquo;Not enough activity&rdquo; with no rank.</div>
                 </div>
               </div>
             )}
@@ -328,7 +352,11 @@ export const LeaderProfileModal: React.FC = () => {
                           #{iss.id} • {iss.categoryName}
                         </span>
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
-                          {iss.status === "marked_resolved" ? "Awaiting Citizen Confirmation" : "Adopted • In Progress"}
+                          {iss.status === "marked_resolved"
+                            ? "Awaiting Citizen Confirmation"
+                            : iss.status === "community_resolved"
+                            ? "Community Resolved ✓"
+                            : "Adopted • In Progress"}
                         </span>
                       </div>
                       <div className="text-xs text-slate-700 dark:text-slate-300 font-medium">
@@ -418,22 +446,33 @@ export const LeaderProfileModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions (Section 6 & 7) */}
         <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-          <button
-            onClick={() => {
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(
-                  `Check out Community Leader ${selectedLeader.realName}'s verified civic track record in ${selectedLeader.ucName} on the Karachi Civic Platform!`
-                );
-              }
-              showToast("Profile share card link copied to clipboard!");
-            }}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
-          >
-            <Share2 className="w-4 h-4" />
-            Share Profile
-          </button>
+          {isFrozen ? (
+            <button
+              disabled
+              className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center gap-1.5 opacity-60"
+              title="Leader share cards are disabled during election period per Spec Addendum 01, Section 6"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Cards Disabled (ECP Election Mode)
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(
+                    `Check out Community Leader ${selectedLeader.realName}'s verified civic track record in ${selectedLeader.ucName} on the Karachi Civic Platform!`
+                  );
+                }
+                showToast("Profile share card link copied to clipboard!");
+              }}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Profile
+            </button>
+          )}
 
           <button
             onClick={() => followLeader(selectedLeader.id)}
@@ -447,3 +486,4 @@ export const LeaderProfileModal: React.FC = () => {
     </div>
   );
 };
+

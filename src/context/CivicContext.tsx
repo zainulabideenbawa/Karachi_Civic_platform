@@ -21,6 +21,8 @@ import {
   ThinkTankBrief,
   ProposalTrackerStatus,
   ThinkTankApplication,
+  ElectionModeRecord,
+  LinkedAccountRecord,
 } from "@/types/civic";
 import {
   MOCK_AUDIT_LOG,
@@ -36,7 +38,10 @@ import {
   MOCK_OFFICIAL_CLAIMS,
   MOCK_JURISDICTION_DISPUTES,
   MOCK_THINK_TANK_BRIEFS,
+  MOCK_ELECTION_MODES,
+  MOCK_LINKED_ACCOUNTS,
 } from "@/lib/mock-data";
+import { computeLeaderScoreBreakdown } from "@/lib/scoring";
 import {
   supabase,
   recordAffectedVote,
@@ -191,7 +196,21 @@ interface CivicContextType {
   applyBecomeLeader: (data: { realName: string; photoUrl: string; bio: string; whyServe: string; party: string; plansToContest: "yes" | "no" | "prefer_not_to_say"; ucId: string }) => void;
   followLeader: (leaderId: string) => void;
   addCommentToIssue: (issueId: string, body: string, customAuthorName?: string) => void;
+  postLeaderResponse: (issueId: string, message: string) => void;
+  fileCandidateNomination: (leaderId: string) => void;
   resetDemoData: () => void;
+
+  // Election Period Mode (Spec Addendum 01, Section 6)
+  isElectionMode: boolean;
+  electionModes: ElectionModeRecord[];
+  toggleElectionMode: (areaId?: string, enabled?: boolean) => void;
+  isCandidateRecordOpen: boolean;
+  setIsCandidateRecordOpen: (open: boolean) => void;
+
+  // Anti-Gaming & Strike Ledger (Spec Addendum 01, Section 5)
+  linkedAccounts: LinkedAccountRecord[];
+  addLeaderStrike: (leaderId: string, reason: string) => void;
+  clearLeaderStrike: (leaderId: string) => void;
   
   // Think Tanks & Policy Briefs (Product Spec Section 9)
   thinkTankBriefs: ThinkTankBrief[];
@@ -281,6 +300,12 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
   const [isBecomeLeaderOpen, setIsBecomeLeaderOpen] = useState(false);
   const [isLeaderDashboardOpen, setIsLeaderDashboardOpen] = useState(false);
 
+  // Election Period Mode & Anti-Gaming State (Spec Addendum 01, Sections 5 & 6)
+  const [electionModes, setElectionModes] = useState<ElectionModeRecord[]>(MOCK_ELECTION_MODES);
+  const [isElectionMode, setIsElectionMode] = useState<boolean>(false);
+  const [isCandidateRecordOpen, setIsCandidateRecordOpen] = useState<boolean>(false);
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccountRecord[]>(MOCK_LINKED_ACCOUNTS);
+
   // UC Ideas Board (Workflow W7) & Find My UC (Workflow W1) & Onboarding (Section 11.3)
   const [ideas, setIdeas] = useState<UCIdea[]>(MOCK_IDEAS);
   const [isIdeasModalOpen, setIsIdeasModalOpen] = useState(false);
@@ -320,6 +345,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     isLeaderProfileOpen ||
     isBecomeLeaderOpen ||
     isLeaderDashboardOpen ||
+    isCandidateRecordOpen ||
     isIdeasModalOpen ||
     isFindMyUCOpen ||
     isOnboardingOpen ||
@@ -336,6 +362,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     if (isOfficialDashboardOpen) { setIsOfficialDashboardOpen(false); return true; }
     if (isNGODashboardOpen) { setIsNGODashboardOpen(false); return true; }
     if (isThinkTankModalOpen) { setIsThinkTankModalOpen(false); return true; }
+    if (isCandidateRecordOpen) { setIsCandidateRecordOpen(false); return true; }
     if (isFindMyUCOpen) { setIsFindMyUCOpen(false); return true; }
     if (isScoreFormulaOpen) { setIsScoreFormulaOpen(false); return true; }
     if (isWhatsAppAuthOpen) { setIsWhatsAppAuthOpen(false); return true; }
@@ -1393,7 +1420,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Vote on confirmation window (Fixed vs Not Fixed, with Rating & Thank You - Section 11.9 W5)
+  // Vote on confirmation window (Fixed vs Not Fixed, with Rating & Thank You - Section 11.9 W5 & Spec Addendum 01, Section 5)
   const voteConfirmation = (
     issueId: string,
     vote: "fixed" | "not_fixed",
@@ -1401,21 +1428,47 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     rating?: number,
     sayThanks?: boolean
   ) => {
+    let resolvedLeaderId: string | undefined;
+    let reopenedLeaderId: string | undefined;
+
     setIssues((prev) =>
       prev.map((iss) => {
         if (iss.id === issueId && iss.confirmationWindow) {
+          // Anti-gaming rule check for Community Leaders (Layer 3)
+          if (iss.adoptedByType === "leader" && iss.adoptedById) {
+            const adoptingLeader = communityLeaders.find(
+              (l) => l.id === iss.adoptedById || l.userId === iss.adoptedById
+            );
+            const isTeamOrLinked =
+              adoptingLeader &&
+              (adoptingLeader.teamMembers.some((tm) => tm.id === "user-101" || tm.name === "Danish Farooqi") ||
+                linkedAccounts.some((la) => la.leaderId === adoptingLeader.id && la.userId === "user-101"));
+
+            if (isTeamOrLinked) {
+              showToast("Anti-Gaming Rule: Confirmations from the leader's declared team or linked accounts are zero-weighted.");
+              return iss;
+            }
+          }
+
           const currentFixed = iss.confirmationWindow.fixedVotes;
           const currentNotFixed = iss.confirmationWindow.notFixedVotes;
           const newFixed = vote === "fixed" ? currentFixed + 1 : currentFixed;
           const newNotFixed =
             vote === "not_fixed" ? currentNotFixed + 1 : currentNotFixed;
 
-          const updatedStatus: Issue["status"] =
-            vote === "not_fixed" && newNotFixed >= 2
-              ? "reopened"
-              : vote === "fixed" && newFixed >= 2
-              ? "confirmed"
-              : iss.status;
+          // Reopens beat a thin fixed majority
+          let updatedStatus: Issue["status"] = iss.status;
+          if (vote === "not_fixed" && newNotFixed >= 2) {
+            updatedStatus = "reopened";
+            if (iss.adoptedByType === "leader") {
+              reopenedLeaderId = iss.adoptedById;
+            }
+          } else if (vote === "fixed" && newFixed >= 2) {
+            updatedStatus = iss.adoptedByType === "leader" ? "community_resolved" : "confirmed";
+            if (iss.adoptedByType === "leader") {
+              resolvedLeaderId = iss.adoptedById;
+            }
+          }
 
           return {
             ...iss,
@@ -1431,6 +1484,41 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         return iss;
       })
     );
+
+    // Update Community Leader score and lifetime stats if resolved
+    if (resolvedLeaderId) {
+      setCommunityLeaders((prev) =>
+        prev.map((lead) => {
+          if (lead.id === resolvedLeaderId || lead.userId === resolvedLeaderId) {
+            const updatedLifetime = lead.resolvedCountLifetime + 1;
+            const updatedActive = Math.max(0, lead.activeAdoptionsCount - 1);
+            return {
+              ...lead,
+              resolvedCountLifetime: updatedLifetime,
+              activeAdoptionsCount: updatedActive,
+              score: Math.min(100, Math.round((lead.score + 2.1) * 10) / 10),
+              trend30d: Math.round((lead.trend30d + 1.2) * 10) / 10,
+              hasEnoughData: updatedLifetime >= 3,
+            };
+          }
+          return lead;
+        })
+      );
+    } else if (reopenedLeaderId) {
+      setCommunityLeaders((prev) =>
+        prev.map((lead) => {
+          if (lead.id === reopenedLeaderId || lead.userId === reopenedLeaderId) {
+            return {
+              ...lead,
+              onTimeRate: Math.max(50, lead.onTimeRate - 5),
+              score: Math.max(0, Math.round((lead.score - 1.8) * 10) / 10),
+              trend30d: Math.round((lead.trend30d - 0.9) * 10) / 10,
+            };
+          }
+          return lead;
+        })
+      );
+    }
 
     if (selectedIssue && selectedIssue.id === issueId) {
       setSelectedIssue((prev) =>
@@ -1874,7 +1962,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     showToast("Idea submitted to UC Ideas Board! Neighbors can now review and upvote.");
   };
 
-  // Community Leader Actions (Spec Addendum 01)
+  // Community Leader Actions (Spec Addendum 01, Sections 3, 4, 5, 6)
   const adoptIssue = (
     issueId: string,
     adopterType: "leader" | "ngo",
@@ -1887,27 +1975,67 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: "Issue not found." };
     }
 
-    // Anti-gaming rule 1: Issues reported by the leader cannot be adopted by that leader
-    if (adopterType === "leader" && targetIssue.reporterId === adopterId) {
-      return { success: false, message: "Anti-Gaming Rule: You cannot adopt an issue reported by yourself or your team." };
+    if (adopterType === "leader") {
+      const leader = communityLeaders.find((l) => l.id === adopterId || l.userId === adopterId);
+      
+      // Status check
+      if (leader && (leader.status === "suspended" || leader.status === "removed")) {
+        return { success: false, message: `Action blocked: Your Community Leader status is currently ${leader.status}.` };
+      }
+
+      // Rule 1: Own UC only (Section 3)
+      if (leader && targetIssue.ucId !== leader.ucId) {
+        return { success: false, message: `Rule Violation (Section 3): Community Leaders can only adopt issues in their registered UC (${leader.ucName}).` };
+      }
+
+      // Rule 2: Anti-gaming (Layer 3) - Issues reported by the leader, their team or linked accounts can never be adopted
+      const isReportedByLeaderOrTeam =
+        targetIssue.reporterId === adopterId ||
+        (leader && (
+          targetIssue.reporterId === leader.id ||
+          targetIssue.reporterId === leader.userId ||
+          leader.teamMembers.some((tm) => tm.id === targetIssue.reporterId || tm.name === targetIssue.reporterName) ||
+          linkedAccounts.some((la) => la.leaderId === leader.id && la.userId === targetIssue.reporterId)
+        ));
+
+      if (isReportedByLeaderOrTeam) {
+        return { success: false, message: "Anti-Gaming Rule (Layer 3): You cannot adopt an issue reported by yourself, your declared team, or linked accounts." };
+      }
+
+      // Rule 3: Anti-gaming (Layer 3) - Evidence/comments from leader or team
+      const hasContributedEvidence =
+        targetIssue.comments &&
+        leader &&
+        targetIssue.comments.some(
+          (c) => c.userId === leader.id || c.userId === leader.userId || leader.teamMembers.some((tm) => tm.id === c.userId)
+        );
+
+      if (hasContributedEvidence) {
+        return { success: false, message: "Anti-Gaming Rule (Layer 3): Issues given evidence or marked by your team cannot be adopted by you." };
+      }
+
+      // Rule 4: Max 10 active adoptions (Section 3)
+      if (leader && leader.activeAdoptionsCount >= 10) {
+        return { success: false, message: "Maximum limit reached: Community Leaders can have at most 10 active adoptions at a time." };
+      }
     }
 
-    // Anti-gaming rule 2: Must be at least 7 days old
+    // Rule 5: Must be at least 7 days old
     if (targetIssue.daysOpen < 7) {
       return { success: false, message: `Issue must be at least 7 days old before community adoption (currently ${targetIssue.daysOpen} days).` };
     }
 
-    // Anti-gaming rule 3: Cannot adopt if already adopted
+    // Rule 6: Cannot adopt if already adopted
     if (targetIssue.adoptedByType) {
       return { success: false, message: `Issue is already adopted by ${targetIssue.adoptedByName || "another entity"}.` };
     }
 
-    // Anti-gaming rule 4: Adoption blocked if official marked in progress within last 14 days
+    // Rule 7: Adoption blocked if official marked in progress within last 14 days
     if (targetIssue.status === "in_progress" && targetIssue.daysOpen <= 14) {
-      return { success: false, message: "Adoption blocked: An elected official is currently actively working on this issue." };
+      return { success: false, message: "Adoption blocked: An elected official has marked this issue In Progress within the last 14 days." };
     }
 
-    // Anti-gaming rule 5: Max 60 days target
+    // Target date: clamp between 1 and 60 days (Section 3)
     const clampedTargetDays = Math.min(Math.max(targetDays, 1), 60);
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + clampedTargetDays);
@@ -2022,6 +2150,118 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: "Resolution submitted for citizen confirmation." };
   };
 
+  const postLeaderResponse = (issueId: string, message: string) => {
+    const leader = communityLeaders.find((l) => l.ucId === activeUC.id) || communityLeaders[0];
+    if (!leader) return;
+    const nowIso = new Date().toISOString();
+    setIssues((prev) =>
+      prev.map((iss) => {
+        if (iss.id === issueId) {
+          return {
+            ...iss,
+            leaderResponse: {
+              leaderId: leader.id,
+              leaderName: leader.realName,
+              respondedAt: nowIso,
+              message: message.trim(),
+            },
+          };
+        }
+        return iss;
+      })
+    );
+    if (selectedIssue && selectedIssue.id === issueId) {
+      setSelectedIssue((prev) =>
+        prev
+          ? {
+              ...prev,
+              leaderResponse: {
+                leaderId: leader.id,
+                leaderName: leader.realName,
+                respondedAt: nowIso,
+                message: message.trim(),
+              },
+            }
+          : null
+      );
+    }
+    showToast(`Community Leader response published for issue #${issueId}`);
+  };
+
+  const toggleElectionMode = (areaId?: string, enabled?: boolean) => {
+    const nextState = enabled !== undefined ? enabled : !isElectionMode;
+    setIsElectionMode(nextState);
+    setElectionModes((prev) =>
+      prev.map((em) => (areaId ? (em.areaId === areaId ? { ...em, isActive: nextState } : em) : { ...em, isActive: nextState }))
+    );
+    setCommunityLeaders((prev) =>
+      prev.map((lead) => ({
+        ...lead,
+        isFrozenForElection: nextState,
+      }))
+    );
+    if (nextState) {
+      showToast("Election Period Mode Activated: Community Leader rankings frozen per ECP rules.");
+    } else {
+      showToast("Election Period Mode Concluded: Live calculations resumed.");
+    }
+  };
+
+  const addLeaderStrike = (leaderId: string, reason: string) => {
+    setCommunityLeaders((prev) =>
+      prev.map((lead) => {
+        if (lead.id === leaderId || lead.userId === leaderId) {
+          const newStrikes = lead.strikes + 1;
+          const newStatus =
+            newStrikes >= 3 ? "removed" : newStrikes === 2 ? "suspended" : lead.status;
+          return {
+            ...lead,
+            strikes: newStrikes,
+            status: newStatus,
+          };
+        }
+        return lead;
+      })
+    );
+    const targetLead = communityLeaders.find((l) => l.id === leaderId || l.userId === leaderId);
+    const logItem: AuditLogEntry = {
+      id: `aud-strike-${Date.now()}`,
+      date: new Date().toLocaleString(),
+      actor: "Anti-Gaming Engine & Admin (Layer 3)",
+      action: `Strike Registered against Community Leader (${targetLead?.realName || leaderId})`,
+      affectedUcOrOfficial: targetLead?.ucName || "Karachi",
+      reason: `Gaming violation confirmed: ${reason}. Under Spec Addendum 01 Sec 5: 1 strike = audit log & resolution removal, 2 strikes = 90d suspension, 3 strikes = permanent status removal.`,
+    };
+    setAuditLog((prev) => [logItem, ...prev]);
+    showToast(`Anti-Gaming Strike recorded against leader: ${reason}`);
+  };
+
+  const clearLeaderStrike = (leaderId: string) => {
+    setCommunityLeaders((prev) =>
+      prev.map((lead) =>
+        lead.id === leaderId || lead.userId === leaderId
+          ? {
+              ...lead,
+              strikes: Math.max(0, lead.strikes - 1),
+              status: lead.strikes - 1 < 2 ? "active" : lead.status,
+            }
+          : lead
+      )
+    );
+    showToast("Strike cleared following verification review.");
+  };
+
+  const fileCandidateNomination = (leaderId: string) => {
+    setCommunityLeaders((prev) =>
+      prev.map((lead) =>
+        lead.id === leaderId || lead.userId === leaderId
+          ? { ...lead, hasFiledNomination: true, plansToContest: "yes" }
+          : lead
+      )
+    );
+    showToast("Nomination papers filed: Candidate record updated on UC election ledger.");
+  };
+
   const applyBecomeLeader = (data: {
     realName: string;
     photoUrl: string;
@@ -2031,6 +2271,12 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
     plansToContest: "yes" | "no" | "prefer_not_to_say";
     ucId: string;
   }) => {
+    // Elected officials can't also be Community Leaders while in office (Section 2)
+    if (activeRole === "official") {
+      showToast("Elected officials cannot also be Community Leaders while in office (Section 2).");
+      return;
+    }
+
     const ucObj = allUCs.find((u) => u.id === data.ucId) || activeUC;
     const newLeader: CommunityLeader = {
       id: `lead-${Date.now()}`,
@@ -2046,6 +2292,7 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
       whyServe: data.whyServe,
       party: data.party || "Independent",
       plansToContest: data.plansToContest,
+      hasFiledNomination: false,
       identityVerified: false,
       identityVerifiedAt: "",
       status: "pending",
@@ -2206,6 +2453,16 @@ export function CivicProvider({ children }: { children: React.ReactNode }) {
         applyBecomeLeader,
         followLeader,
         addCommentToIssue,
+        postLeaderResponse,
+        fileCandidateNomination,
+        isElectionMode,
+        electionModes,
+        toggleElectionMode,
+        isCandidateRecordOpen,
+        setIsCandidateRecordOpen,
+        linkedAccounts,
+        addLeaderStrike,
+        clearLeaderStrike,
         toast,
         showToast,
         dismissToast,

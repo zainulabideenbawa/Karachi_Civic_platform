@@ -34,6 +34,9 @@ export const LeaderDashboardModal: React.FC = () => {
     resolveAdoptedIssue,
     showToast,
     setSelectedIssue,
+    isElectionMode,
+    fileCandidateNomination,
+    setIsCandidateRecordOpen,
   } = useCivic();
 
   const [activeTab, setActiveTab] = useState<"discover" | "adoptions" | "pledges" | "team">("discover");
@@ -161,8 +164,53 @@ export const LeaderDashboardModal: React.FC = () => {
           </div>
         </div>
 
+        {/* Election Mode Banner */}
+        {isElectionMode && (
+          <div className="mx-4 mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+                ECP Election Period Active — Leader Rankings Frozen
+              </span>
+              <button
+                onClick={() => setIsCandidateRecordOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] transition cursor-pointer"
+              >
+                View Candidate Record
+              </button>
+            </div>
+            <p className="text-[11px] text-amber-800 dark:text-amber-400">
+              Per Spec Addendum 01 (Section 6), leader ranks are frozen. No new pledges may be created. Report card export &amp; share badges are temporarily disabled to prevent campaign misuse.
+            </p>
+          </div>
+        )}
+
+        {/* Nomination Filing Declaration */}
+        <div className="mx-4 mt-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+          <div>
+            <div className="font-bold text-slate-800 dark:text-slate-200">
+              ECP Nomination Papers Status
+            </div>
+            <div className="text-[10px] text-slate-500">
+              {currentLeader.hasFiledNomination
+                ? "You have declared filed nomination papers for upcoming local elections."
+                : "Nomination papers not yet filed for this election cycle."}
+            </div>
+          </div>
+          <button
+            onClick={() => fileCandidateNomination(currentLeader.id)}
+            className={`px-3 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+              currentLeader.hasFiledNomination
+                ? "bg-purple-600 text-white hover:bg-purple-700"
+                : "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-300"
+            }`}
+          >
+            {currentLeader.hasFiledNomination ? "Declared Candidate ✓" : "Declare Filed Papers"}
+          </button>
+        </div>
+
         {/* Next Best Action Banner */}
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/60 flex items-center justify-between gap-3 text-xs">
+        <div className="mx-4 mt-2 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/60 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300">
             <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
             <span>
@@ -455,11 +503,35 @@ export const LeaderDashboardModal: React.FC = () => {
           {/* TAB 3: PLEDGES & EVENTS */}
           {activeTab === "pledges" && (
             <div className="space-y-3">
+              {isElectionMode && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-300 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    Pledges &amp; Candidate Events Frozen (Election Mode)
+                  </div>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-400">
+                    Per Spec Addendum 01 (Section 6), no new pledges can be submitted during the election period.
+                    {currentLeader.hasFiledNomination && " As a candidate who filed nomination papers, you are restricted from creating platform events until election results."}
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500">Public commitments tracked on the official promise ledger.</span>
                 <button
-                  onClick={() => showToast("New pledge modal opened. Each pledge must have a measurable outcome & due date.")}
-                  className="px-3 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition cursor-pointer flex items-center gap-1"
+                  disabled={isElectionMode}
+                  onClick={() => {
+                    if (isElectionMode) {
+                      showToast("New pledges are frozen during Election Period per ECP rules.");
+                      return;
+                    }
+                    showToast("New pledge modal opened. Each pledge must have a measurable outcome & due date.");
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    isElectionMode
+                      ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
+                  }`}
                 >
                   <Plus className="w-3.5 h-3.5" /> New Pledge
                 </button>
@@ -538,13 +610,25 @@ export const LeaderDashboardModal: React.FC = () => {
         <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1 text-[11px] text-slate-500">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Anti-Gaming Layer 3 Active • 0 Strikes</span>
+            <span>Anti-Gaming Layer 3 Active • {currentLeader.strikes || 0} Strikes</span>
           </div>
           <button
-            onClick={() => showToast("Monthly Leader Report Card PDF generated & downloaded.")}
-            className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition cursor-pointer flex items-center gap-1"
+            disabled={isElectionMode}
+            onClick={() => {
+              if (isElectionMode) {
+                showToast("Report card export disabled during election period to prevent campaign material misuse.");
+                return;
+              }
+              showToast("Monthly Leader Report Card PDF generated & downloaded.");
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 ${
+              isElectionMode
+                ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+            }`}
           >
-            <FileText className="w-3.5 h-3.5" /> Export Report Card PDF
+            <FileText className="w-3.5 h-3.5" />
+            {isElectionMode ? "PDF Disabled (Election Mode)" : "Export Report Card PDF"}
           </button>
         </div>
       </div>

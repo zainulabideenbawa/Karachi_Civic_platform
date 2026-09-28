@@ -53,6 +53,8 @@ export const MyUCTab: React.FC = () => {
     setIsAdminConsoleOpen,
     setIsThinkTankModalOpen,
     exportIssuesCSV,
+    isElectionMode,
+    setIsCandidateRecordOpen,
   } = useCivic();
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("all");
@@ -282,26 +284,38 @@ export const MyUCTab: React.FC = () => {
             </p>
           </div>
 
-          {activeRole === "citizen" || !activeRole ? (
-            <button
-              onClick={() => setIsBecomeLeaderOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px] font-bold hover:bg-indigo-100 transition cursor-pointer shrink-0"
-            >
-              Become a Leader
-            </button>
-          ) : activeRole === "community_leader" ? (
-            <button
-              onClick={() => setIsLeaderDashboardOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition cursor-pointer shrink-0 flex items-center gap-1 shadow-xs"
-            >
-              <Award className="w-3 h-3" />
-              <span>Leader Studio</span>
-            </button>
-          ) : (
-            <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-              UC Directory
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {isElectionMode && (
+              <button
+                onClick={() => setIsCandidateRecordOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition cursor-pointer shrink-0 flex items-center gap-1 shadow-xs"
+              >
+                <Vote className="w-3 h-3" />
+                <span>Candidate Record</span>
+              </button>
+            )}
+
+            {activeRole === "citizen" || !activeRole ? (
+              <button
+                onClick={() => setIsBecomeLeaderOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px] font-bold hover:bg-indigo-100 transition cursor-pointer shrink-0"
+              >
+                Become a Leader
+              </button>
+            ) : activeRole === "community_leader" ? (
+              <button
+                onClick={() => setIsLeaderDashboardOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition cursor-pointer shrink-0 flex items-center gap-1 shadow-xs"
+              >
+                <Award className="w-3 h-3" />
+                <span>Leader Studio</span>
+              </button>
+            ) : (
+              <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                UC Directory
+              </span>
+            )}
+          </div>
         </div>
 
         {communityLeaders.filter((c) => c.ucId === activeUC.id).length === 0 ? (
@@ -312,65 +326,90 @@ export const MyUCTab: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {communityLeaders
               .filter((c) => c.ucId === activeUC.id)
-              .sort((a, b) => b.score - a.score)
-              .map((leader, idx) => (
-                <div
-                  key={leader.id}
-                  onClick={() => {
-                    setSelectedLeader(leader);
-                    setIsLeaderProfileOpen(true);
-                  }}
-                  className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition cursor-pointer space-y-2 flex flex-col justify-between"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="relative shrink-0">
-                      <img
-                        src={leader.photoUrl}
-                        alt={leader.realName}
-                        className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-                      />
-                      {leader.identityVerified && (
-                        <div
-                          className="absolute -bottom-1 -right-1 bg-emerald-600 text-white p-0.5 rounded-full"
-                          title="Verified Identity"
-                        >
-                          <ShieldCheck className="w-2.5 h-2.5" />
+              .sort((a, b) => {
+                const aHas = a.scoreBreakdown ? a.scoreBreakdown.hasEnoughData : true;
+                const bHas = b.scoreBreakdown ? b.scoreBreakdown.hasEnoughData : true;
+                if (aHas && !bHas) return -1;
+                if (!aHas && bHas) return 1;
+                return b.score - a.score;
+              })
+              .map((leader, idx) => {
+                const hasEnough = leader.scoreBreakdown ? leader.scoreBreakdown.hasEnoughData : true;
+
+                return (
+                  <div
+                    key={leader.id}
+                    onClick={() => {
+                      setSelectedLeader(leader);
+                      setIsLeaderProfileOpen(true);
+                    }}
+                    className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition cursor-pointer space-y-2 flex flex-col justify-between"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="relative shrink-0">
+                        <img
+                          src={leader.photoUrl}
+                          alt={leader.realName}
+                          className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                        />
+                        {leader.identityVerified && (
+                          <div
+                            className="absolute -bottom-1 -right-1 bg-emerald-600 text-white p-0.5 rounded-full"
+                            title="Verified Identity"
+                          >
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {leader.realName}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {hasEnough ? `#${idx + 1}` : "—"}
+                          </span>
                         </div>
-                      )}
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {leader.party} • {leader.hasFiledNomination || leader.plansToContest === "yes" ? "Candidate" : "Volunteer"}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        {hasEnough ? (
+                          <>
+                            <div className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                              {leader.score.toFixed(1)}
+                            </div>
+                            <div className="text-[9px] font-semibold text-emerald-600 flex items-center justify-end gap-0.5">
+                              <TrendingUp className="w-2.5 h-2.5" /> +{leader.trend30d}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-xs font-bold text-slate-400 tabular-nums">
+                              Unranked
+                            </div>
+                            <div className="text-[9px] font-semibold text-amber-600">
+                              Low activity
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {leader.realName}
-                        </span>
-                        <span className="text-[10px] text-slate-400 shrink-0">#{idx + 1}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 truncate">
-                        {leader.party} • {leader.plansToContest === "yes" ? "Candidate" : "Volunteer"}
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                        {leader.score.toFixed(1)}
-                      </div>
-                      <div className="text-[9px] font-semibold text-emerald-600 flex items-center justify-end gap-0.5">
-                        <TrendingUp className="w-2.5 h-2.5" /> +{leader.trend30d}
-                      </div>
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>
+                        <strong className="text-slate-800 dark:text-slate-200">{leader.activeAdoptionsCount}</strong> active • <strong className="text-slate-800 dark:text-slate-200">{leader.resolvedCountLifetime}</strong> resolved
+                      </span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-0.5">
+                        Profile <ChevronRight className="w-3 h-3" />
+                      </span>
                     </div>
                   </div>
-
-                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px] text-slate-500">
-                    <span>
-                      <strong className="text-slate-800 dark:text-slate-200">{leader.activeAdoptionsCount}</strong> active • <strong className="text-slate-800 dark:text-slate-200">{leader.resolvedCountLifetime}</strong> resolved
-                    </span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-0.5">
-                      Profile <ChevronRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         )}
       </section>
